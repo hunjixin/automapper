@@ -9,22 +9,49 @@ import (
 var (
 	mapper     = map[reflect.Type]map[reflect.Type]*MappingInfo{}
 	mapperLock = sync.RWMutex{}
-	cache = 	lrucache.New(1025)
+	cache      = lrucache.New(1025)
 )
 
 const (
-	None = iota
+	None     = iota
 	SameType = 1
 	ChildMap = 2
 )
 
-
-
 type MappingField struct {
-	Type    	int
-	FromField 	*StructField
-	ToField    	*StructField
+	Type         int
+	FromField    *StructField
+	ToField      *StructField
 	ChildMapping *MappingInfo
+}
+
+func (mappingField *MappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	if mappingField.Type == SameType {
+		destFieldValue.Set(reflect.ValueOf(sourceFieldValue.Interface()))
+	} else if mappingField.Type == ChildMap {
+		childVal, err := Mapper(sourceFieldValue.Interface(), destFieldValue.Type())
+		if err != nil {
+			return err
+		}
+		destFieldValue.Set(reflect.ValueOf(childVal))
+	}
+	return nil
+}
+func (mappingField *MappingField) GetType() int {
+	return mappingField.Type
+}
+func (mappingField *MappingField) GetFromField() *StructField {
+	return mappingField.FromField
+}
+func (mappingField *MappingField) GetToField() *StructField {
+	return mappingField.ToField
+}
+
+type IStructConverter interface {
+	Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error
+	GetType() int
+	GetFromField() *StructField
+	GetToField() *StructField
 }
 
 // MappingInfo recored field mapping information
@@ -32,35 +59,35 @@ type MappingInfo struct {
 	Key        string
 	SourceType reflect.Type
 	DestType   reflect.Type
-	MapFileds  []*MappingField
+	MapFileds  []IStructConverter
 }
 
 func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *StructField) bool {
 	if sourceFiled.Type == destFiled.Type {
 		mappingField := &MappingField{
-			Type: SameType,
+			Type:      SameType,
 			FromField: sourceFiled,
-			ToField:destFiled,
+			ToField:   destFiled,
 		}
 		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 		return true
-	}else {
+	} else {
 		childMappingInfo, err := getMapping(sourceFiled.Type, destFiled.Type)
 		if err == nil {
 			mappingField := &MappingField{
-				Type: ChildMap,
-				FromField:sourceFiled,
-				ToField:destFiled,
-				ChildMapping:childMappingInfo,
+				Type:         ChildMap,
+				FromField:    sourceFiled,
+				ToField:      destFiled,
+				ChildMapping: childMappingInfo,
 			}
 			mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 			return true
 		}
 	}
 	mappingField := &MappingField{
-		Type: None,
-		FromField:sourceFiled,
-		ToField:destFiled,
+		Type:      None,
+		FromField: sourceFiled,
+		ToField:   destFiled,
 	}
 	mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 	return false
@@ -78,9 +105,9 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 		return ErrNotStruct
 	}
 	mappingInfo := &MappingInfo{
-		SourceType	:	sourceType,
-		DestType	:	destType,
-		MapFileds	:	[]*MappingField{},
+		SourceType: sourceType,
+		DestType:   destType,
+		MapFileds:  []IStructConverter{},
 	}
 
 	// get deep field and group fields by name
@@ -116,7 +143,7 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 				destField := oneDestGoupField[0]
 				for j := 0; j < len(oneSourceGroupField); j++ {
 					sourceFiled := oneSourceGroupField[j]
-					if sourceFiled.Path == destField.Path  {
+					if sourceFiled.Path == destField.Path {
 						mappingInfo.TryAddFieldMapping(sourceFiled, destField)
 						break
 					}
@@ -127,7 +154,7 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 					sourceFiled := oneSourceGroupField[i]
 					for j := 0; j < len(oneDestGoupField); j++ {
 						destField := oneDestGoupField[j]
-						if sourceFiled.Path == destField.Path  {
+						if sourceFiled.Path == destField.Path {
 							mappingInfo.TryAddFieldMapping(sourceFiled, destField)
 						}
 					}
@@ -154,14 +181,16 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 	for _, mappingInfosMap := range mapper {
 		for _, mappingInfo := range mappingInfosMap {
 			for _, mapField := range mappingInfo.MapFileds {
-				if mapField.Type == None {
-					if toStructType(mapField.FromField.StructField.Type) == sourceType {
-						if toStructType(mapField.ToField.StructField.Type) == destType {
-							mapField.Type = ChildMap
-							mapField.ChildMapping = mappingInfo
+				if mapField.GetType() == None {
+					field := mapField.(*MappingField)
+					if toStructType(mapField.GetFromField().StructField.Type) == sourceType {
+						if toStructType(mapField.GetToField().StructField.Type) == destType {
+							field.Type = ChildMap
+							field.ChildMapping = mappingInfo
 						}
 					}
 				}
+
 			}
 		}
 	}
@@ -201,34 +230,30 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	sourceType := sourceValue.Type()
 	mappingInfo, err := getMapping(sourceType, destType)
 	if err != nil {
-		return nil ,err
+		return nil, err
 	}
 	mapperLock.RLock()
 	defer func() {
 		mapperLock.RUnlock()
 	}()
 
-
 	destValue := reflect.New(destType).Elem()
 	destFieldValues := deepValue(destValue)
 	sourceFields := deepValue(sourceValue)
 
 	for _, mappingField := range mappingInfo.MapFileds {
-		sourceFieldValue := sourceFields[mappingField.FromField.FiledIndex]
-		if sourceFieldValue.CanAddr()&& sourceFieldValue.Addr().IsNil() {
+		sourceFieldValue := sourceFields[mappingField.GetFromField().FiledIndex]
+		if (sourceFieldValue.Kind() == reflect.Ptr ||
+			sourceFieldValue.Kind() == reflect.Map ||
+			sourceFieldValue.Kind() == reflect.Slice) &&
+			sourceFieldValue.IsNil() {
 			continue
-		}else{
-			destFieldValue := destFieldValues[mappingField.ToField.FiledIndex]
-			if mappingField.Type == SameType {
-				destFieldValue.Set(reflect.ValueOf(sourceFieldValue.Interface()))
-			}else if  mappingField.Type == ChildMap {
-				childVal, err := Mapper(sourceFieldValue.Interface(),destFieldValue.Type())
-				if err != nil {
-					return nil, err
-				}
-				destFieldValue.Set(reflect.ValueOf(childVal))
+		} else {
+			destFieldValue := destFieldValues[mappingField.GetToField().FiledIndex]
+			err := mappingField.Convert(sourceFieldValue, destFieldValue)
+			if err != nil {
+				return nil, err
 			}
-
 		}
 	}
 
@@ -239,12 +264,11 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	}
 }
 
-
 func containMapping(sourceType, destType reflect.Type) bool {
-	_, err := getMapping(sourceType,destType)
+	_, err := getMapping(sourceType, destType)
 	if err != nil {
 		return false
-	}else{
+	} else {
 		return true
 	}
 }
@@ -255,6 +279,7 @@ func toStructType(t reflect.Type) reflect.Type {
 	}
 	return t
 }
+
 func getMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	if sourceType.Kind() == reflect.Ptr {
 		sourceType = sourceType.Elem()
@@ -266,7 +291,7 @@ func getMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	if !ok {
 		return nil, ErrMapperNotDefine
 	}
-	mappingInfosMap, ok :=mappingInfosMaps[destType]
+	mappingInfosMap, ok := mappingInfosMaps[destType]
 	if !ok {
 		return nil, ErrMapperNotDefine
 	}

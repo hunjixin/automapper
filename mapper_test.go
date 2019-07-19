@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 func TestOneToOneCreateMapper(t *testing.T) {
 	type TestA struct {
 		A string
@@ -26,7 +25,7 @@ func TestOneToOneCreateMapper(t *testing.T) {
 		t.Error(err)
 	}
 	if len(mapping.MapFileds) != 2 {
-		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds), )
+		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 }
 
@@ -54,7 +53,7 @@ func TestOneToManyCreateMapper(t *testing.T) {
 		t.Error(err)
 	}
 	if len(mapping.MapFileds) != 2 {
-		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds), )
+		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 	for _, mapField := range mapping.MapFileds {
 		if mapField.FromField.Name() == "A" {
@@ -96,6 +95,6 @@ func TestManyToManyCreateMapper(t *testing.T) {
 		t.Error(err)
 	}
 	if len(mapping.MapFileds) != 4 {
-		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds), )
+		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 }

@@ -5,16 +5,16 @@ import "reflect"
 // StructField wrap reflect.StructField.  FiledIndex recored field index include enbed types, Path indirect the path to enbed field like .Enbed.XXX
 type StructField struct {
 	reflect.StructField
-	TagName     string
-	Ignore 	bool
-	FiledIndex 	int
-	Path       	string
+	TagName    string
+	Ignore     bool
+	FiledIndex int
+	Path       string
 }
 
-func (structField *StructField) Name() string{
+func (structField *StructField) Name() string {
 	if structField.TagName == "" {
 		return structField.StructField.Name
-	}else{
+	} else {
 		return structField.TagName
 	}
 }
@@ -32,16 +32,20 @@ func internalDeepFields(ift reflect.Type, index *intVal, key string) []*StructFi
 	for i := 0; i < ift.NumField(); i++ {
 		f := ift.Field(i)
 		newKey := key + "." + f.Name
-		if f.Type.Kind() ==  reflect.Struct && f.Anonymous {
+		if f.Type.Kind() == reflect.Chan ||
+			f.Type.Kind() == reflect.Func ||
+			f.Type.Kind() == reflect.UnsafePointer {
+			continue
+		}
+		if f.Type.Kind() == reflect.Struct && f.Anonymous {
 			fields = append(fields, internalDeepFields(f.Type, index, newKey)...)
-		}else{
-			fields = append(fields, &StructField{f, "",false, index.I, newKey})
+		} else {
+			fields = append(fields, &StructField{f, "", false, index.I, newKey})
 			index.plus(1)
 		}
 	}
 	return fields
 }
-
 
 func deepValue(ifv reflect.Value) []reflect.Value {
 	ifv = reflect.Indirect(ifv)
@@ -49,9 +53,14 @@ func deepValue(ifv reflect.Value) []reflect.Value {
 	for i := 0; i < ifv.Type().NumField(); i++ {
 		v := ifv.Field(i)
 		t := ifv.Type().Field(i)
-		if v.Kind() == reflect.Struct && t.Anonymous{
+		if t.Type.Kind() == reflect.Chan ||
+			t.Type.Kind() == reflect.Func ||
+			t.Type.Kind() == reflect.UnsafePointer {
+			continue
+		}
+		if v.Kind() == reflect.Struct && t.Anonymous {
 			fields = append(fields, deepValue(v)...)
-		}else{
+		} else {
 			fields = append(fields, v)
 		}
 	}
@@ -64,7 +73,7 @@ func deepFields(ift reflect.Type) []*StructField {
 	if val, err := cache.Get(cacheKey); err == nil {
 		//exist
 		return val.([]*StructField)
-	}else {
+	} else {
 		// not exist parser and set cache
 		mapFields := internalDeepFields(ift, &intVal{0}, "")
 		cache.Set(cacheKey, mapFields)
