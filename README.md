@@ -3,7 +3,8 @@ Package automapper provides data mapping between different struct
 
 ### Features
 
-1. simple filed mapping 
+1. same name filed mapping 
+2. mapping between deferent struct field
 2. support mapping enbeded fields
 
 
@@ -19,16 +20,21 @@ Package automapper provides data mapping between different struct
   package main
   
   import (
-  	"github.com/hunjixin/automapper"
-  	"time"
-  	"reflect"
   	"fmt"
+  	"github.com/hunjixin/automapper"
+  	"reflect"
+  	"time"
   )
+  
+  type Son struct {
+  	PersonModel
+  }
   
   type PersonModel struct {
   	Name 		string
-  	Age  		int
+  	Birth  		time.Time
   	Address     string
+  	Sons *Son
   	CreateDate  time.Time
   	DeleteDate  time.Time
   	IsDel 		bool
@@ -38,23 +44,35 @@ Package automapper provides data mapping between different struct
   	Name 		string
   	Age  		int
   	Address     string
+  	Sons *PersonDto
   	CreateDate  time.Time
   	DeleteDate  time.Time
   	IsDel 		bool
   }
   
   func init(){
+  	automapper.CreateMapper(reflect.TypeOf((*Son)(nil)), reflect.TypeOf((*PersonDto)(nil)))
   	automapper.CreateMapper(reflect.TypeOf((*PersonModel)(nil)), reflect.TypeOf((*PersonDto)(nil)))
   }
+  type A struct {
   
+  }
   func main() {
-  	model := PersonModel{}
-  	model.Name = "Jimmy"
-  	model.Age = 12
-  	model.Address = "S·H"
-  	model.CreateDate = time.Now()
-  	model.IsDel = true
-  	result := automapper.MustMapper(model, reflect.TypeOf((*PersonDto)(nil)))
+  	children := &PersonModel{}
+  	children.Name = "bruth"
+  	children.Birth = time.Date(1993,3,4,1,2,3,4, time.UTC)
+  	children.Address = "S·H"
+  	children.CreateDate = time.Now()
+  	children.IsDel = true
+  
+  	father := &PersonModel{}
+  	father.Name = "Jimmy"
+  	children.Birth = time.Date(1973,3,4,1,2,3,4, time.UTC)
+  	father.Address = "S·H"
+  	father.CreateDate = time.Now()
+  	father.IsDel = true
+  	father.Sons = &Son{*children}
+  	result := automapper.MustMapper(father, reflect.TypeOf((*PersonDto)(nil)))
   	fmt.Println(reflect.TypeOf(result).String())
   }
 ```

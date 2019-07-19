@@ -21,7 +21,7 @@ func TestOneToOneCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := GetMapping(sourceType, destType)
+	mapping, err := getMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -49,7 +49,7 @@ func TestOneToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := GetMapping(sourceType, destType)
+	mapping, err := getMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -57,13 +57,13 @@ func TestOneToManyCreateMapper(t *testing.T) {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds), )
 	}
 	for _, mapField := range mapping.MapFileds {
-		if mapField.Name == "A" {
-			if mapField.Key != ".Embed.A" {
+		if mapField.FromField.Name() == "A" {
+			if mapField.ToField.Path != ".Embed.A" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.A", mapping.Key)
 			}
 		}
-		if mapField.Name == "B" {
-			if mapField.Key != ".Embed.B" {
+		if mapField.FromField.Name() == "B" {
+			if mapField.ToField.Path != ".Embed.B" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.B", mapping.Key)
 			}
 		}
@@ -91,7 +91,7 @@ func TestManyToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := GetMapping(sourceType, destType)
+	mapping, err := getMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}

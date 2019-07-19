@@ -1,6 +1,7 @@
 package automapper
 
 import (
+	"github.com/hraban/lrucache"
 	"reflect"
 	"sync"
 )
@@ -8,13 +9,22 @@ import (
 var (
 	mapper     = map[reflect.Type]map[reflect.Type]*MappingInfo{}
 	mapperLock = sync.RWMutex{}
+	cache = 	lrucache.New(1025)
 )
 
-// StructField wrap reflect.StructField.  FiledIndex recored field index include enbed types, Key indirect the path to enbed field like .Enbed.XXX
-type StructField struct {
-	reflect.StructField
-	FiledIndex int
-	Key        string
+const (
+	None = iota
+	SameType = 1
+	ChildMap = 2
+)
+
+
+
+type MappingField struct {
+	Type    	int
+	FromField 	*StructField
+	ToField    	*StructField
+	ChildMapping *MappingInfo
 }
 
 // MappingInfo recored field mapping information
@@ -22,33 +32,61 @@ type MappingInfo struct {
 	Key        string
 	SourceType reflect.Type
 	DestType   reflect.Type
-	MapFileds  map[*StructField]*StructField
+	MapFileds  []*MappingField
+}
+
+func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *StructField) bool {
+	if sourceFiled.Type == destFiled.Type {
+		mappingField := &MappingField{
+			Type: SameType,
+			FromField: sourceFiled,
+			ToField:destFiled,
+		}
+		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
+		return true
+	}else {
+		childMappingInfo, err := getMapping(sourceFiled.Type, destFiled.Type)
+		if err == nil {
+			mappingField := &MappingField{
+				Type: ChildMap,
+				FromField:sourceFiled,
+				ToField:destFiled,
+				ChildMapping:childMappingInfo,
+			}
+			mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
+			return true
+		}
+	}
+	mappingField := &MappingField{
+		Type: None,
+		FromField:sourceFiled,
+		ToField:destFiled,
+	}
+	mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
+	return false
 }
 
 // CreateMapper build field mapping between sourceType and destType
 // if name is 1 to 1 and map derect
 // if name is 1 to many or many to 1: use key path to match
 // if name is many to many :  use key path to match. may exist match more than one
+// TODO
 func CreateMapper(sourceType, destType reflect.Type) error {
-	if sourceType.Kind() == reflect.Ptr {
-		sourceType = sourceType.Elem()
-	}
-	if destType.Kind() == reflect.Ptr {
-		destType = destType.Elem()
-	}
+	sourceType = toStructType(sourceType)
+	destType = toStructType(destType)
 	if sourceType.Kind() != reflect.Struct || destType.Kind() != reflect.Struct {
 		return ErrNotStruct
 	}
-	mappingInfo := &MappingInfo{}
-	mappingInfo.SourceType = sourceType
-	mappingInfo.DestType = destType
-	mappingInfo.MapFileds = map[*StructField]*StructField{}
+	mappingInfo := &MappingInfo{
+		SourceType	:	sourceType,
+		DestType	:	destType,
+		MapFileds	:	[]*MappingField{},
+	}
 
-	// get deep field
+	// get deep field and group fields by name
 	allSourceFileds := deepFields(sourceType)
-	destFileds := deepFields(destType)
-	//group fields by name
 	sourceGroupFields := groupFiled(allSourceFileds)
+	destFileds := deepFields(destType)
 	destGroupFields := groupFiled(destFileds)
 
 	for name, oneSourceGroupField := range sourceGroupFields {
@@ -59,16 +97,16 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 		if len(oneSourceGroupField) == 1 {
 			if len(oneDestGoupField) == 1 {
 				// 1 to 1
-				if oneSourceGroupField[0].Type == oneDestGoupField[0].Type {
-					mappingInfo.MapFileds[oneSourceGroupField[0]] = oneDestGoupField[0]
-				}
+				sourceField := oneSourceGroupField[0]
+				destField := oneDestGoupField[0]
+				mappingInfo.TryAddFieldMapping(sourceField, destField)
 			} else {
 				//1 to many
 				sourceFiled := oneSourceGroupField[0]
 				for j := 0; j < len(oneDestGoupField); j++ {
 					destField := oneDestGoupField[j]
-					if sourceFiled.Key == destField.Key && sourceFiled.Type == destField.Type {
-						mappingInfo.MapFileds[sourceFiled] = destField
+					if sourceFiled.Path == destField.Path {
+						mappingInfo.TryAddFieldMapping(sourceFiled, destField)
 					}
 				}
 			}
@@ -78,8 +116,8 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 				destField := oneDestGoupField[0]
 				for j := 0; j < len(oneSourceGroupField); j++ {
 					sourceFiled := oneSourceGroupField[j]
-					if sourceFiled.Key == destField.Key && sourceFiled.Type == destField.Type {
-						mappingInfo.MapFileds[sourceFiled] = destField
+					if sourceFiled.Path == destField.Path  {
+						mappingInfo.TryAddFieldMapping(sourceFiled, destField)
 						break
 					}
 				}
@@ -89,8 +127,8 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 					sourceFiled := oneSourceGroupField[i]
 					for j := 0; j < len(oneDestGoupField); j++ {
 						destField := oneDestGoupField[j]
-						if sourceFiled.Key == destField.Key && sourceFiled.Type == destField.Type {
-							mappingInfo.MapFileds[sourceFiled] = destField
+						if sourceFiled.Path == destField.Path  {
+							mappingInfo.TryAddFieldMapping(sourceFiled, destField)
 						}
 					}
 				}
@@ -113,6 +151,21 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 		mapper[sourceType] = map[reflect.Type]*MappingInfo{destType: mappingInfo}
 	}
 
+	for _, mappingInfosMap := range mapper {
+		for _, mappingInfo := range mappingInfosMap {
+			for _, mapField := range mappingInfo.MapFileds {
+				if mapField.Type == None {
+					if toStructType(mapField.FromField.StructField.Type) == sourceType {
+						if toStructType(mapField.ToField.StructField.Type) == destType {
+							mapField.Type = ChildMap
+							mapField.ChildMapping = mappingInfo
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -120,24 +173,15 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 func groupFiled(fileds []*StructField) map[string][]*StructField {
 	groupFileds := map[string][]*StructField{}
 	for _, field := range fileds {
-		oneGroupFields, exist := groupFileds[field.Name]
+		oneGroupFields, exist := groupFileds[field.Name()]
 		if exist {
 			oneGroupFields = append(oneGroupFields, field)
-			groupFileds[field.Name] = oneGroupFields
+			groupFileds[field.Name()] = oneGroupFields
 		} else {
-			groupFileds[field.Name] = []*StructField{field}
+			groupFileds[field.Name()] = []*StructField{field}
 		}
 	}
 	return groupFileds
-}
-
-func contain(arr []string, str string) bool {
-	for _, s := range arr {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }
 
 // MustMapper like Mapper just ignore error
@@ -153,30 +197,38 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 		destType = destType.Elem()
 		isDestPtr = true
 	}
+	sourceValue := reflect.Indirect(reflect.ValueOf(source))
+	sourceType := sourceValue.Type()
+	mappingInfo, err := getMapping(sourceType, destType)
+	if err != nil {
+		return nil ,err
+	}
 	mapperLock.RLock()
 	defer func() {
 		mapperLock.RUnlock()
 	}()
-	sourceType := reflect.TypeOf(source)
-	sourceValue := deepValue(reflect.ValueOf(source))
-	mappingInfosMap, ok := mapper[sourceType]
-	if !ok {
-		return nil, ErrMapperNotDefine
-	}
 
-	mappingInfo, ok := mappingInfosMap[destType]
-	if !ok {
-		return nil, ErrMapperNotDefine
-	}
+
 	destValue := reflect.New(destType).Elem()
 	destFieldValues := deepValue(destValue)
-	for sourcerField, destFiled := range mappingInfo.MapFileds {
-		sourceValue := sourceValue[sourcerField.FiledIndex]
-		if sourceValue.CanAddr()&&sourceValue.IsNil() {
+	sourceFields := deepValue(sourceValue)
+
+	for _, mappingField := range mappingInfo.MapFileds {
+		sourceFieldValue := sourceFields[mappingField.FromField.FiledIndex]
+		if sourceFieldValue.CanAddr()&& sourceFieldValue.Addr().IsNil() {
 			continue
 		}else{
-			field := destFieldValues[destFiled.FiledIndex]
-			field.Set(reflect.ValueOf(sourceValue.Interface()))
+			destFieldValue := destFieldValues[mappingField.ToField.FiledIndex]
+			if mappingField.Type == SameType {
+				destFieldValue.Set(reflect.ValueOf(sourceFieldValue.Interface()))
+			}else if  mappingField.Type == ChildMap {
+				childVal, err := Mapper(sourceFieldValue.Interface(),destFieldValue.Type())
+				if err != nil {
+					return nil, err
+				}
+				destFieldValue.Set(reflect.ValueOf(childVal))
+			}
+
 		}
 	}
 
@@ -187,26 +239,23 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	}
 }
 
-func deepValue(ifv reflect.Value) []reflect.Value {
-	fields := make([]reflect.Value, 0)
-	for i := 0; i < ifv.Type().NumField(); i++ {
-		v := ifv.Field(i)
-		t := ifv.Type().Field(i)
-		if v.Kind() == reflect.Struct && t.Anonymous{
-			fields = append(fields, deepValue(v)...)
-		}else{
-			fields = append(fields, v)
-		}
+
+func containMapping(sourceType, destType reflect.Type) bool {
+	_, err := getMapping(sourceType,destType)
+	if err != nil {
+		return false
+	}else{
+		return true
 	}
-
-	return fields
 }
 
-func deepFields(ift reflect.Type) []*StructField {
-	return internalDeepFields(ift, &intVal{0}, "")
+func toStructType(t reflect.Type) reflect.Type {
+	if t.Kind() == reflect.Ptr {
+		return t.Elem()
+	}
+	return t
 }
-
-func GetMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
+func getMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	if sourceType.Kind() == reflect.Ptr {
 		sourceType = sourceType.Elem()
 	}
@@ -222,27 +271,4 @@ func GetMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		return nil, ErrMapperNotDefine
 	}
 	return mappingInfosMap, nil
-}
-
-type intVal struct {
-	I int
-}
-
-func (intval *intVal) plus(i int) {
-	intval.I = intval.I + i
-}
-
-func internalDeepFields(ift reflect.Type, index *intVal, key string) []*StructField {
-	fields := make([]*StructField, 0)
-	for i := 0; i < ift.NumField(); i++ {
-		f := ift.Field(i)
-		newKey := key + "." + f.Name
-		if f.Type.Kind() ==  reflect.Struct && f.Anonymous {
-			fields = append(fields, internalDeepFields(f.Type, index, newKey)...)
-		}else{
-			fields = append(fields, &StructField{f, index.I, newKey})
-			index.plus(1)
-		}
-	}
-	return fields
 }
