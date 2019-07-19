@@ -32,8 +32,8 @@ type PersonDto struct {
 }
 
 func init() {
-	automapper.CreateMapper(reflect.TypeOf((*Son)(nil)), reflect.TypeOf((*PersonDto)(nil)))
 	automapper.CreateMapper(reflect.TypeOf((*PersonModel)(nil)), reflect.TypeOf((*PersonDto)(nil)))
+	automapper.CreateMapper(reflect.TypeOf((*Son)(nil)), reflect.TypeOf((*PersonDto)(nil)))
 }
 
 type A struct {

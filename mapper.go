@@ -26,6 +26,7 @@ type MappingInfo struct {
 	MapFileds  []IStructConverter
 }
 
+// TryAddFieldMapping analysis mapping time and add it to MapFields
 func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *StructField) bool {
 	if sourceFiled.Type == destFiled.Type {
 		mappingField := &SameTypeMappingField{
@@ -152,27 +153,24 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 		for _, mappingInfo := range mappingInfosMap {
 			for i := len(mappingInfo.MapFileds) - 1; i > -1; i-- {
 				mapField := mappingInfo.MapFileds[i]
-				if mapField.GetType() == None {
+				if mapField.GetType() == None &&
+					toStructType(mapField.GetFromField().StructField.Type) == sourceType &&
+					toStructType(mapField.GetToField().StructField.Type) == destType {
 					field := mapField.(*NoneMappingField)
-					if toStructType(mapField.GetFromField().StructField.Type) == sourceType {
-						if toStructType(mapField.GetToField().StructField.Type) == destType {
-							childMapField := &ChildrenMappingField{
-								BaseMappingField{
-									Type:      ChildMap,
-									FromField: field.GetFromField(),
-									ToField:   field.GetToField(),
-								},
-								mappingInfo,
-							}
-							mappingInfo.MapFileds = append(mappingInfo.MapFileds, childMapField)
-							mappingInfo.MapFileds = append(mappingInfo.MapFileds[:i], mappingInfo.MapFileds[i+1:]...)
-						}
+					childMapField := &ChildrenMappingField{
+						BaseMappingField{
+							Type:      ChildMap,
+							FromField: field.GetFromField(),
+							ToField:   field.GetToField(),
+						},
+						mappingInfo,
 					}
+					mappingInfo.MapFileds = append(mappingInfo.MapFileds, childMapField)
+					mappingInfo.MapFileds = append(mappingInfo.MapFileds[:i], mappingInfo.MapFileds[i+1:]...)
 				}
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -191,7 +189,7 @@ func groupFiled(fileds []*StructField) map[string][]*StructField {
 	return groupFileds
 }
 
-// MustMapper like Mapper just ignore error
+// MustMapper similar to Mapper just ignore error
 func MustMapper(source interface{}, destType reflect.Type) interface{} {
 	val, _ := Mapper(source, destType)
 	return val
