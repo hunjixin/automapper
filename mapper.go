@@ -18,42 +18,6 @@ const (
 	ChildMap = 2
 )
 
-type MappingField struct {
-	Type         int
-	FromField    *StructField
-	ToField      *StructField
-	ChildMapping *MappingInfo
-}
-
-func (mappingField *MappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	if mappingField.Type == SameType {
-		destFieldValue.Set(reflect.ValueOf(sourceFieldValue.Interface()))
-	} else if mappingField.Type == ChildMap {
-		childVal, err := Mapper(sourceFieldValue.Interface(), destFieldValue.Type())
-		if err != nil {
-			return err
-		}
-		destFieldValue.Set(reflect.ValueOf(childVal))
-	}
-	return nil
-}
-func (mappingField *MappingField) GetType() int {
-	return mappingField.Type
-}
-func (mappingField *MappingField) GetFromField() *StructField {
-	return mappingField.FromField
-}
-func (mappingField *MappingField) GetToField() *StructField {
-	return mappingField.ToField
-}
-
-type IStructConverter interface {
-	Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error
-	GetType() int
-	GetFromField() *StructField
-	GetToField() *StructField
-}
-
 // MappingInfo recored field mapping information
 type MappingInfo struct {
 	Key        string
@@ -64,30 +28,36 @@ type MappingInfo struct {
 
 func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *StructField) bool {
 	if sourceFiled.Type == destFiled.Type {
-		mappingField := &MappingField{
-			Type:      SameType,
-			FromField: sourceFiled,
-			ToField:   destFiled,
+		mappingField := &SameTypeMappingField{
+			BaseMappingField{
+				Type:      SameType,
+				FromField: sourceFiled,
+				ToField:   destFiled,
+			},
 		}
 		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 		return true
 	} else {
 		childMappingInfo, err := getMapping(sourceFiled.Type, destFiled.Type)
 		if err == nil {
-			mappingField := &MappingField{
-				Type:         ChildMap,
-				FromField:    sourceFiled,
-				ToField:      destFiled,
-				ChildMapping: childMappingInfo,
+			mappingField := &ChildrenMappingField{
+				BaseMappingField{
+					Type:      ChildMap,
+					FromField: sourceFiled,
+					ToField:   destFiled,
+				},
+				childMappingInfo,
 			}
 			mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 			return true
 		}
 	}
-	mappingField := &MappingField{
-		Type:      None,
-		FromField: sourceFiled,
-		ToField:   destFiled,
+	mappingField := &NoneMappingField{
+		BaseMappingField{
+			Type:      None,
+			FromField: sourceFiled,
+			ToField:   destFiled,
+		},
 	}
 	mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 	return false
@@ -180,17 +150,25 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 
 	for _, mappingInfosMap := range mapper {
 		for _, mappingInfo := range mappingInfosMap {
-			for _, mapField := range mappingInfo.MapFileds {
+			for i := len(mappingInfo.MapFileds) - 1; i > -1; i-- {
+				mapField := mappingInfo.MapFileds[i]
 				if mapField.GetType() == None {
-					field := mapField.(*MappingField)
+					field := mapField.(*NoneMappingField)
 					if toStructType(mapField.GetFromField().StructField.Type) == sourceType {
 						if toStructType(mapField.GetToField().StructField.Type) == destType {
-							field.Type = ChildMap
-							field.ChildMapping = mappingInfo
+							childMapField := &ChildrenMappingField{
+								BaseMappingField{
+									Type:      ChildMap,
+									FromField: field.GetFromField(),
+									ToField:   field.GetToField(),
+								},
+								mappingInfo,
+							}
+							mappingInfo.MapFileds = append(mappingInfo.MapFileds, childMapField)
+							mappingInfo.MapFileds = append(mappingInfo.MapFileds[:i], mappingInfo.MapFileds[i+1:]...)
 						}
 					}
 				}
-
 			}
 		}
 	}
