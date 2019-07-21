@@ -20,7 +20,7 @@ func TestOneToOneCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := getMapping(sourceType, destType)
+	mapping, err := ensureMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +48,7 @@ func TestOneToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := getMapping(sourceType, destType)
+	mapping, err := ensureMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -90,7 +90,7 @@ func TestManyToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := getMapping(sourceType, destType)
+	mapping, err := ensureMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}

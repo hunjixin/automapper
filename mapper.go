@@ -1,6 +1,7 @@
 package automapper
 
 import (
+	"fmt"
 	"github.com/hraban/lrucache"
 	"reflect"
 	"sync"
@@ -14,7 +15,6 @@ var (
 
 const (
 	None     = iota
-	SameNone = 1
 	SameType = 2
 	ChildMap = 3
 )
@@ -47,28 +47,18 @@ func (mappingInfo *MappingInfo) tryAddNameFieldMapping(sourceFiled, destFiled *s
 		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 		return true
 	} else {
-		childMappingInfo, err := getMapping(sourceFiled.Type, destFiled.Type)
-		if err == nil {
-			mappingField := &ChildrenMappingField{
-				BaseMappingField{
-					Type:      ChildMap,
-					FromField: sourceFiled,
-					ToField:   destFiled,
-				},
-				childMappingInfo,
-			}
-			mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
-			return true
+		mappingField := &NoneMappingField{
+			BaseMappingField{
+				Type:      None,
+				FromField: sourceFiled,
+				ToField:   destFiled,
+			},
 		}
+		fmt.Println(sourceFiled.Type.String())
+		fmt.Println(destFiled.Type.String())
+		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
+		ensureMapping(sourceFiled.Type, destFiled.Type)
 	}
-	mappingField := &NoneMappingField{
-		BaseMappingField{
-			Type:      SameNone,
-			FromField: sourceFiled,
-			ToField:   destFiled,
-		},
-	}
-	mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
 	return false
 }
 
@@ -93,7 +83,17 @@ func CreateMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		MapFileds:  []IStructConverter{},
 		MapFunc:	[]func (interface{}, interface{}){},
 	}
-
+	mappingInfosMap, ok := mapper[sourceType]
+	if ok {
+		oldmappingInfo, ok2 := mappingInfosMap[sourceType]
+		if ok2 {
+			return oldmappingInfo, nil
+		} else {
+			mappingInfosMap[destType] = mappingInfo
+		}
+	} else {
+		mapper[sourceType] = map[reflect.Type]*MappingInfo{destType: mappingInfo}
+	}
 	// get deep field and group fields by name
 	allSourceFileds := deepFields(sourceType)
 	sourceGroupFields := groupFiled(allSourceFileds)
@@ -150,23 +150,12 @@ func CreateMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	defer func() {
 		mapperLock.Unlock()
 	}()
-	mappingInfosMap, ok := mapper[sourceType]
-	if ok {
-		oldmappingInfo, ok2 := mappingInfosMap[sourceType]
-		if ok2 {
-			return oldmappingInfo, nil
-		} else {
-			mappingInfosMap[destType] = mappingInfo
-		}
-	} else {
-		mapper[sourceType] = map[reflect.Type]*MappingInfo{destType: mappingInfo}
-	}
 
 	for _, mappingInfosMap := range mapper {
 		for _, mappingInfo := range mappingInfosMap {
 			for i := len(mappingInfo.MapFileds) - 1; i > -1; i-- {
 				mapField := mappingInfo.MapFileds[i]
-				if mapField.GetType() == SameNone &&
+				if mapField.GetType() == None &&
 					toStructType(mapField.GetFromField().StructField.Type) == sourceType &&
 					toStructType(mapField.GetToField().StructField.Type) == destType {
 					field := mapField.(*NoneMappingField)
@@ -220,10 +209,7 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	if destType.Kind() != reflect.Struct||sourceType.Kind() != reflect.Struct {
 		return nil, ErrNotStruct
 	}
-	mappingInfo, err := getMapping(sourceType, destType)
-	if err != nil {
-		return nil, err
-	}
+	mappingInfo := ensureMapping(sourceType, destType)
 	mapperLock.RLock()
 	defer func() {
 		mapperLock.RUnlock()
@@ -258,15 +244,6 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	}
 }
 
-func containMapping(sourceType, destType reflect.Type) bool {
-	_, err := getMapping(sourceType, destType)
-	if err != nil {
-		return false
-	} else {
-		return true
-	}
-}
-
 func toStructType(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Ptr {
 		return t.Elem()
@@ -274,7 +251,7 @@ func toStructType(t reflect.Type) reflect.Type {
 	return t
 }
 
-func getMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
+func ensureMapping(sourceType, destType reflect.Type) *MappingInfo {
 	if sourceType.Kind() == reflect.Ptr {
 		sourceType = sourceType.Elem()
 	}
@@ -283,11 +260,13 @@ func getMapping(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	}
 	mappingInfosMaps, ok := mapper[sourceType]
 	if !ok {
-		return nil, ErrMapperNotDefine
+		mapping, _:=  CreateMapper(sourceType, destType)
+		return mapping
 	}
 	mappingInfosMap, ok := mappingInfosMaps[destType]
 	if !ok {
-		return nil, ErrMapperNotDefine
+		mapping, _:=  CreateMapper(sourceType, destType)
+		return mapping
 	}
-	return mappingInfosMap, nil
+	return mappingInfosMap
 }

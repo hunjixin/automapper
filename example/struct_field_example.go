@@ -1,4 +1,4 @@
-// +build main3
+
 package main
 
 import (
@@ -33,11 +33,8 @@ type PersonDto struct {
 }
 
 func init() {
-	automapper.MustCreateMapper(reflect.TypeOf((*PersonModel)(nil)), reflect.TypeOf((*PersonDto)(nil)))
-	automapper.MustCreateMapper(reflect.TypeOf((*Son)(nil)), reflect.TypeOf((*PersonDto)(nil)))
-}
-
-type A struct {
+	//automapper.MustCreateMapper(reflect.TypeOf((*PersonModel)(nil)), reflect.TypeOf((*PersonDto)(nil)))
+	//automapper.MustCreateMapper(reflect.TypeOf((*Son)(nil)), reflect.TypeOf((*PersonDto)(nil)))
 }
 
 func main() {

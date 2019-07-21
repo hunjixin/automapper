@@ -17,10 +17,6 @@ type User struct {
 	Nick string  `mapping:"Name"`
 }
 
-func init() {
-	automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil)))
-}
-
 func main() {
 	user := &User{"NAME", "NICK"}
 	result := automapper.MustMapper(user, reflect.TypeOf((*UserDto)(nil)))

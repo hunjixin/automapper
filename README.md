@@ -7,6 +7,7 @@ Package automapper provides data mapping between different struct
 2. child struct field mapping
 3. support tag to redefine field name
 4. func to customize field mapping content
+5. automatic registration when no special requirement
 
 
 ## Example
@@ -50,7 +51,7 @@ Package automapper provides data mapping between different struct
     }
     
     func main() {
-        automapper.MustCreateMapper(reflect.TypeOf((*ExampleStructA)(nil)), reflect.TypeOf((*ExampleStructB)(nil)))
+        //automapper.MustCreateMapper(reflect.TypeOf((*ExampleStructA)(nil)), reflect.TypeOf((*ExampleStructB)(nil)))
     
         a := ExampleStructA{ EnB{}, En{"Sh", "Bj"},"XXXXXX"}
         result := automapper.MustMapper(a, reflect.TypeOf((*ExampleStructB)(nil)))
@@ -80,10 +81,6 @@ Package automapper provides data mapping between different struct
     type User struct {
         Name string  `mapping:"Nick"`
         Nick string  `mapping:"Name"`
-    }
-    
-    func init() {
-        automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil)))
     }
     
     func main() {
@@ -134,3 +131,6 @@ Package automapper provides data mapping between different struct
    	fmt.Println(reflect.TypeOf(result).String())
    }
 ```
+
+## RoadMap
+ 1. array&&slice&map mapping
