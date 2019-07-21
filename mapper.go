@@ -14,8 +14,9 @@ var (
 
 const (
 	None     = iota
-	SameType = 1
-	ChildMap = 2
+	SameNone = 1
+	SameType = 2
+	ChildMap = 3
 )
 
 // MappingInfo recored field mapping information
@@ -24,10 +25,17 @@ type MappingInfo struct {
 	SourceType reflect.Type
 	DestType   reflect.Type
 	MapFileds  []IStructConverter
+	MapFunc    []func (interface{}, interface{})
 }
 
-// TryAddFieldMapping analysis mapping time and add it to MapFields
-func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *StructField) bool {
+// Mapping add customize field mapping
+func (mappingInfo *MappingInfo) Mapping(mapFunc func (interface{}, interface{})) *MappingInfo{
+	mappingInfo.MapFunc = append(mappingInfo.MapFunc, mapFunc)
+	return mappingInfo
+}
+
+// tryAddNameFieldMapping analysis mapping time and add it to MapFields
+func (mappingInfo *MappingInfo) tryAddNameFieldMapping(sourceFiled, destFiled *structField) bool {
 	if sourceFiled.Type == destFiled.Type {
 		mappingField := &SameTypeMappingField{
 			BaseMappingField{
@@ -55,7 +63,7 @@ func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *Struc
 	}
 	mappingField := &NoneMappingField{
 		BaseMappingField{
-			Type:      None,
+			Type:      SameNone,
 			FromField: sourceFiled,
 			ToField:   destFiled,
 		},
@@ -64,21 +72,26 @@ func (mappingInfo *MappingInfo) TryAddFieldMapping(sourceFiled, destFiled *Struc
 	return false
 }
 
+// MustCreateMapper similar CreateMapper just ignore error
+func MustCreateMapper(sourceType, destType reflect.Type) *MappingInfo {
+	mappingInfo, _ := CreateMapper(sourceType, destType)
+	return mappingInfo
+}
 // CreateMapper build field mapping between sourceType and destType
 // if name is 1 to 1 and map derect
 // if name is 1 to many or many to 1: use key path to match
 // if name is many to many :  use key path to match. may exist match more than one
-// TODO
-func CreateMapper(sourceType, destType reflect.Type) error {
+func CreateMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	sourceType = toStructType(sourceType)
 	destType = toStructType(destType)
 	if sourceType.Kind() != reflect.Struct || destType.Kind() != reflect.Struct {
-		return ErrNotStruct
+		return nil, ErrNotStruct
 	}
 	mappingInfo := &MappingInfo{
 		SourceType: sourceType,
 		DestType:   destType,
 		MapFileds:  []IStructConverter{},
+		MapFunc:	[]func (interface{}, interface{}){},
 	}
 
 	// get deep field and group fields by name
@@ -97,14 +110,14 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 				// 1 to 1
 				sourceField := oneSourceGroupField[0]
 				destField := oneDestGoupField[0]
-				mappingInfo.TryAddFieldMapping(sourceField, destField)
+				mappingInfo.tryAddNameFieldMapping(sourceField, destField)
 			} else {
 				//1 to many
 				sourceFiled := oneSourceGroupField[0]
 				for j := 0; j < len(oneDestGoupField); j++ {
 					destField := oneDestGoupField[j]
 					if sourceFiled.Path == destField.Path {
-						mappingInfo.TryAddFieldMapping(sourceFiled, destField)
+						mappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
 					}
 				}
 			}
@@ -115,7 +128,7 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 				for j := 0; j < len(oneSourceGroupField); j++ {
 					sourceFiled := oneSourceGroupField[j]
 					if sourceFiled.Path == destField.Path {
-						mappingInfo.TryAddFieldMapping(sourceFiled, destField)
+						mappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
 						break
 					}
 				}
@@ -126,7 +139,7 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 					for j := 0; j < len(oneDestGoupField); j++ {
 						destField := oneDestGoupField[j]
 						if sourceFiled.Path == destField.Path {
-							mappingInfo.TryAddFieldMapping(sourceFiled, destField)
+							mappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
 						}
 					}
 				}
@@ -139,9 +152,9 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 	}()
 	mappingInfosMap, ok := mapper[sourceType]
 	if ok {
-		_, ok2 := mappingInfosMap[sourceType]
+		oldmappingInfo, ok2 := mappingInfosMap[sourceType]
 		if ok2 {
-			return nil
+			return oldmappingInfo, nil
 		} else {
 			mappingInfosMap[destType] = mappingInfo
 		}
@@ -153,7 +166,7 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 		for _, mappingInfo := range mappingInfosMap {
 			for i := len(mappingInfo.MapFileds) - 1; i > -1; i-- {
 				mapField := mappingInfo.MapFileds[i]
-				if mapField.GetType() == None &&
+				if mapField.GetType() == SameNone &&
 					toStructType(mapField.GetFromField().StructField.Type) == sourceType &&
 					toStructType(mapField.GetToField().StructField.Type) == destType {
 					field := mapField.(*NoneMappingField)
@@ -171,19 +184,19 @@ func CreateMapper(sourceType, destType reflect.Type) error {
 			}
 		}
 	}
-	return nil
+	return mappingInfo, nil
 }
 
 // groupFiled group field by name
-func groupFiled(fileds []*StructField) map[string][]*StructField {
-	groupFileds := map[string][]*StructField{}
+func groupFiled(fileds []*structField) map[string][]*structField {
+	groupFileds := map[string][]*structField{}
 	for _, field := range fileds {
 		oneGroupFields, exist := groupFileds[field.Name()]
 		if exist {
 			oneGroupFields = append(oneGroupFields, field)
 			groupFileds[field.Name()] = oneGroupFields
 		} else {
-			groupFileds[field.Name()] = []*StructField{field}
+			groupFileds[field.Name()] = []*structField{field}
 		}
 	}
 	return groupFileds
@@ -204,6 +217,9 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	}
 	sourceValue := reflect.Indirect(reflect.ValueOf(source))
 	sourceType := sourceValue.Type()
+	if destType.Kind() != reflect.Struct||sourceType.Kind() != reflect.Struct {
+		return nil, ErrNotStruct
+	}
 	mappingInfo, err := getMapping(sourceType, destType)
 	if err != nil {
 		return nil, err
@@ -232,7 +248,9 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 			}
 		}
 	}
-
+	for _, mapFunc := range mappingInfo.MapFunc {
+		mapFunc(destValue.Addr().Interface(), sourceValue.Interface())
+	}
 	if isDestPtr {
 		return destValue.Addr().Interface(), nil
 	} else {

@@ -3,9 +3,10 @@ Package automapper provides data mapping between different struct
 
 ### Features
 
-1. same name filed mapping 
-2. mapping between deferent struct field
-2. support mapping enbeded fields
+1. complex type mapping include embed field
+2. child struct field mapping
+3. support tag to redefine field name
+4. func to customize field mapping content
 
 
 ## Example
@@ -16,68 +17,120 @@ Package automapper provides data mapping between different struct
 
 ## Example
 
-```go
-  package main
-  
-  import (
-  	"fmt"
-  	"github.com/hunjixin/automapper"
-  	"reflect"
-  	"time"
-  )
-  
-  type Son struct {
-  	PersonModel
-  }
-  
-  type PersonModel struct {
-  	Name 		string
-  	Birth  		time.Time
-  	Address     string
-  	Sons *Son
-  	CreateDate  time.Time
-  	DeleteDate  time.Time
-  	IsDel 		bool
-  }
-  
-  type PersonDto struct {
-  	Name 		string
-  	Age  		int
-  	Address     string
-  	Sons *PersonDto
-  	CreateDate  time.Time
-  	DeleteDate  time.Time
-  	IsDel 		bool
-  }
-  
-  func init(){
-  	automapper.CreateMapper(reflect.TypeOf((*Son)(nil)), reflect.TypeOf((*PersonDto)(nil)))
-  	automapper.CreateMapper(reflect.TypeOf((*PersonModel)(nil)), reflect.TypeOf((*PersonDto)(nil)))
-  }
-  type A struct {
-  
-  }
-  func main() {
-  	children := &PersonModel{}
-  	children.Name = "bruth"
-  	children.Birth = time.Date(1993,3,4,1,2,3,4, time.UTC)
-  	children.Address = "S·H"
-  	children.CreateDate = time.Now()
-  	children.IsDel = true
-  
-  	father := &PersonModel{}
-  	father.Name = "Jimmy"
-  	children.Birth = time.Date(1973,3,4,1,2,3,4, time.UTC)
-  	father.Address = "S·H"
-  	father.CreateDate = time.Now()
-  	father.IsDel = true
-  	father.Sons = &Son{*children}
-  	result := automapper.MustMapper(father, reflect.TypeOf((*PersonDto)(nil)))
-  	fmt.Println(reflect.TypeOf(result).String())
-  }
-```
-## Roadmap
+### embed mapping
 
-1. support tag to mapping
-2. support injected func to mapping
-3. add cache to faster type mapping 
+```go
+    package main
+    
+    import (
+        "fmt"
+        "github.com/hunjixin/automapper"
+        "reflect"
+    )
+    
+    type En struct {
+        B string
+        D string
+    }
+    
+    type EnB struct {
+        B string
+        D string
+    }
+    
+    type ExampleStructA struct {
+        EnB
+        En
+        A string
+    }
+    
+    type ExampleStructB struct {
+        En
+        A string
+    }
+    
+    func main() {
+        automapper.MustCreateMapper(reflect.TypeOf((*ExampleStructA)(nil)), reflect.TypeOf((*ExampleStructB)(nil)))
+    
+        a := ExampleStructA{ EnB{}, En{"Sh", "Bj"},"XXXXXX"}
+        result := automapper.MustMapper(a, reflect.TypeOf((*ExampleStructB)(nil)))
+        fmt.Println(reflect.TypeOf(result).String())
+    
+        result2 := automapper.MustMapper(a, reflect.TypeOf(ExampleStructB{}))
+        fmt.Println(reflect.TypeOf(result2).String())
+    }
+```
+
+### tag mapping
+
+```go
+    package main
+    
+    import (
+        "fmt"
+        "github.com/hunjixin/automapper"
+        "reflect"
+    )
+    
+    type UserDto struct {
+        Nick string
+        Name string
+    }
+    
+    type User struct {
+        Name string  `mapping:"Nick"`
+        Nick string  `mapping:"Name"`
+    }
+    
+    func init() {
+        automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil)))
+    }
+    
+    func main() {
+        user := &User{"NAME", "NICK"}
+        result := automapper.MustMapper(user, reflect.TypeOf((*UserDto)(nil)))
+        fmt.Println(reflect.TypeOf(result).String())
+    }
+```
+
+### func mapping
+
+```go
+   package main
+   
+   import (
+   	"fmt"
+   	"github.com/hunjixin/automapper"
+   	"reflect"
+   	"time"
+   )
+   
+   type UserDto struct {
+   	Name string
+   	Addr string
+   	Age  int
+   }
+   
+   type User struct {
+   	Name string
+   	Nick string
+   	Addr string
+   	Birth time.Time
+   }
+   
+   func init() {
+   	automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil))).
+   	Mapping(func(destVal interface{}, sourceVal interface{}) {
+   		destVal.(*UserDto).Name = sourceVal.(User).Name + "|"+ sourceVal.(User).Nick
+   	}).
+   	Mapping(func(destVal interface{}, sourceVal interface{}) {
+   		destVal.(*UserDto).Age = time.Now().Year() - sourceVal.(User).Birth.Year()
+   	})
+   }
+   
+   func main() {
+   	user := &User{"NAME", "NICK", "B·J", time.Date(1992, 10,3,1,0,0,0,time.UTC)}
+   	result := automapper.MustMapper(user, reflect.TypeOf((*UserDto)(nil)))
+   	fmt.Println(reflect.TypeOf(result).String())
+   }
+```

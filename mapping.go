@@ -7,8 +7,8 @@ import (
 type IStructConverter interface {
 	Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error
 	GetType() int
-	GetFromField() *StructField
-	GetToField() *StructField
+	GetFromField() *structField
+	GetToField() *structField
 }
 
 type ChildrenMappingField struct {
@@ -44,18 +44,18 @@ func (mappingField *BaseMappingField) Convert(sourceFieldValue reflect.Value, de
 
 type BaseMappingField struct {
 	Type      int
-	FromField *StructField
-	ToField   *StructField
+	FromField *structField
+	ToField   *structField
 }
 
 func (mappingField *BaseMappingField) GetType() int {
 	return mappingField.Type
 }
 
-func (mappingField *BaseMappingField) GetFromField() *StructField {
+func (mappingField *BaseMappingField) GetFromField() *structField {
 	return mappingField.FromField
 }
 
-func (mappingField *BaseMappingField) GetToField() *StructField {
+func (mappingField *BaseMappingField) GetToField() *structField {
 	return mappingField.ToField
 }
