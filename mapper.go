@@ -9,7 +9,7 @@ import (
 
 var (
 	mapper     = map[reflect.Type]map[reflect.Type]*MappingInfo{}
-	mapperLock = sync.RWMutex{}
+	mapperLock = sync.Mutex{}
 	cache      = lrucache.New(1025)
 )
 
@@ -67,6 +67,7 @@ func MustCreateMapper(sourceType, destType reflect.Type) *MappingInfo {
 	mappingInfo, _ := CreateMapper(sourceType, destType)
 	return mappingInfo
 }
+
 // CreateMapper build field mapping between sourceType and destType
 // if name is 1 to 1 and map derect
 // if name is 1 to many or many to 1: use key path to match
@@ -83,6 +84,10 @@ func CreateMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		MapFileds:  []IStructConverter{},
 		MapFunc:	[]func (interface{}, interface{}){},
 	}
+	mapperLock.Lock()
+	defer func() {
+		mapperLock.Unlock()
+	}()
 	mappingInfosMap, ok := mapper[sourceType]
 	if ok {
 		oldmappingInfo, ok2 := mappingInfosMap[sourceType]
@@ -209,11 +214,9 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	if destType.Kind() != reflect.Struct||sourceType.Kind() != reflect.Struct {
 		return nil, ErrNotStruct
 	}
+
 	mappingInfo := ensureMapping(sourceType, destType)
-	mapperLock.RLock()
-	defer func() {
-		mapperLock.RUnlock()
-	}()
+
 
 	destValue := reflect.New(destType).Elem()
 	destFieldValues := deepValue(destValue)
@@ -249,6 +252,14 @@ func toStructType(t reflect.Type) reflect.Type {
 		return t.Elem()
 	}
 	return t
+}
+
+func EnsureMapping(sourceType, destType reflect.Type) *MappingInfo {
+	mapperLock.Lock()
+	defer func() {
+		mapperLock.Unlock()
+	}()
+	return ensureMapping(sourceType, destType)
 }
 
 func ensureMapping(sourceType, destType reflect.Type) *MappingInfo {
