@@ -7,6 +7,13 @@ import (
 	"reflect"
 	"time"
 )
+type A struct {
+	Name       string
+}
+
+type B struct {
+	Name       string
+}
 
 type Son struct {
 	PersonModel
@@ -20,6 +27,7 @@ type PersonModel struct {
 	CreateDate time.Time
 	DeleteDate time.Time
 	IsDel      bool
+	XX A
 }
 
 type PersonDto struct {
@@ -30,6 +38,7 @@ type PersonDto struct {
 	CreateDate time.Time
 	DeleteDate time.Time
 	IsDel      bool
+	XX B
 }
 
 func init() {
@@ -44,6 +53,7 @@ func main() {
 	children.Address = "S·H"
 	children.CreateDate = time.Now()
 	children.IsDel = true
+	children.XX = A{ "children"}
 
 	father := &PersonModel{}
 	father.Name = "Jimmy"
@@ -51,7 +61,8 @@ func main() {
 	father.Address = "S·H"
 	father.CreateDate = time.Now()
 	father.IsDel = true
+	father.XX = A{"father"}
 	father.Sons = &Son{*children}
-	result := automapper.MustMapper(father, reflect.TypeOf((*PersonDto)(nil)))
-	fmt.Println(reflect.TypeOf(result).String())
+	result := automapper.MustMapper(father, reflect.TypeOf((PersonDto)(nil)))
+	fmt.Println(result)
 }

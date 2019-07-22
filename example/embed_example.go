@@ -36,5 +36,5 @@ func main() {
 	fmt.Println(reflect.TypeOf(result).String())
 
 	result2 := automapper.MustMapper(a, reflect.TypeOf(ExampleStructB{}))
-	fmt.Println(reflect.TypeOf(result2).String())
+	fmt.Println(result2)
 }

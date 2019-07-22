@@ -81,7 +81,7 @@ func internalDeepFields(ift reflect.Type, index *intVal, key string) []*structFi
 	fields := make([]*structField, 0)
 	for i := 0; i < ift.NumField(); i++ {
 		f := ift.Field(i)
-		newKey := key + ".[" + toStructType(f.Type).String() + "]"
+		newKey := key + ".[" + indirectType(f.Type).String() + "]"
 		if f.Type.Kind() == reflect.Chan ||
 			f.Type.Kind() == reflect.Func ||
 			f.Type.Kind() == reflect.UnsafePointer {

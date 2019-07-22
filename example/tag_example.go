@@ -20,5 +20,5 @@ type User struct {
 func main() {
 	user := &User{"NAME", "NICK"}
 	result := automapper.MustMapper(user, reflect.TypeOf((*UserDto)(nil)))
-	fmt.Println(reflect.TypeOf(result).String())
+	fmt.Println(result)
 }

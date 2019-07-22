@@ -133,4 +133,9 @@ Package automapper provides data mapping between different struct
 ```
 
 ## RoadMap
- 1. array&&slice&map mapping
+ 1. map2struct
+ 2. struct2map
+ 3. array2array
+ 4. array2slice
+ 5. slice2array
+ 6. slice2slice
