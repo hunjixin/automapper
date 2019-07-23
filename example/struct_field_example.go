@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -7,12 +6,13 @@ import (
 	"reflect"
 	"time"
 )
+
 type A struct {
-	Name       string
+	Name string
 }
 
 type B struct {
-	Name       string
+	Name string
 }
 
 type Son struct {
@@ -27,7 +27,7 @@ type PersonModel struct {
 	CreateDate time.Time
 	DeleteDate time.Time
 	IsDel      bool
-	XX A
+	XX         A
 }
 
 type PersonDto struct {
@@ -38,7 +38,7 @@ type PersonDto struct {
 	CreateDate time.Time
 	DeleteDate time.Time
 	IsDel      bool
-	XX B
+	XX         B
 }
 
 func init() {
@@ -47,13 +47,20 @@ func init() {
 }
 
 func main() {
+	type TA struct {
+		DeleteDate time.Time
+	}
+	type TB struct {
+		DeleteDate time.Time
+	}
+	automapper.MustMapper(TA{}, reflect.TypeOf((*TB)(nil)))
 	children := &PersonModel{}
 	children.Name = "bruth"
 	children.Birth = time.Date(1993, 3, 4, 1, 2, 3, 4, time.UTC)
 	children.Address = "S·H"
 	children.CreateDate = time.Now()
 	children.IsDel = true
-	children.XX = A{ "children"}
+	children.XX = A{"children"}
 
 	father := &PersonModel{}
 	father.Name = "Jimmy"

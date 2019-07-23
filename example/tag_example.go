@@ -13,8 +13,8 @@ type UserDto struct {
 }
 
 type User struct {
-	Name string  `mapping:"Nick"`
-	Nick string  `mapping:"Name"`
+	Name string `mapping:"Nick"`
+	Nick string `mapping:"Name"`
 }
 
 func main() {

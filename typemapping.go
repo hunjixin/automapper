@@ -3,7 +3,7 @@ package automapper
 import "reflect"
 
 const (
-	None     = iota
+	None = iota
 	AnyType
 	SameType
 	ArrayMap
@@ -21,21 +21,22 @@ const (
 // MappingInfo recored field mapping information
 type MappingInfo struct {
 	Key        string
-	Type      int
+	Type       int
 	SourceType reflect.Type
 	DestType   reflect.Type
 	MapFileds  []IStructConverter
 
 	FromFields []*structField
 	ToField    []*structField
-	MapFunc    []func (interface{}, interface{})
+	MapFunc    []func(interface{}, interface{})
 }
 
 func (mappingInfo *MappingInfo) AddField(field IStructConverter) {
 	mappingInfo.MapFileds = append(mappingInfo.MapFileds, field)
 }
+
 // Mapping add customize field mapping
-func (mappingInfo *MappingInfo) Mapping(mapFunc func (interface{}, interface{})) *MappingInfo{
+func (mappingInfo *MappingInfo) Mapping(mapFunc func(interface{}, interface{})) *MappingInfo {
 	mappingInfo.MapFunc = append(mappingInfo.MapFunc, mapFunc)
 	return mappingInfo
 }
@@ -44,7 +45,7 @@ func (mappingInfo *MappingInfo) Mapping(mapFunc func (interface{}, interface{}))
 func (mappingInfo *MappingInfo) tryAddNameFieldMapping(sourceFiled, destFiled *structField) bool {
 	mappingInfo.Type = StructToStrucgt
 	childMapping, _ := ensureMapping(sourceFiled.Type, destFiled.Type)
-	mappingInfo.MapFileds = append(mappingInfo.MapFileds, &StructFieldField{sourceFiled, destFiled,childMapping})
+	mappingInfo.MapFileds = append(mappingInfo.MapFileds, &StructFieldMap{sourceFiled, destFiled, childMapping})
 	return true
 }
 
@@ -69,7 +70,7 @@ func isSimpleType(t reflect.Type) bool {
 		t.Kind() == reflect.Chan &&
 		t.Kind() == reflect.Func &&
 		t.Kind() == reflect.Int &&
-		t.Kind() == reflect.Int8{
+		t.Kind() == reflect.Int8 {
 		return true
 	}
 	return false
@@ -77,14 +78,9 @@ func isSimpleType(t reflect.Type) bool {
 
 func isString2InterfaceMap(t reflect.Type) bool {
 	if t.Kind() == reflect.Map &&
-		t.Key().Kind() == reflect.String&&
+		t.Key().Kind() == reflect.String &&
 		t.Elem().Kind() == reflect.Interface {
 		return true
 	}
 	return false
 }
-
-
-
-
-

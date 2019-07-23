@@ -9,7 +9,7 @@ import (
 var (
 	mapperStore = map[reflect.Type]map[reflect.Type]*MappingInfo{}
 	lock        sync.Mutex
-	cache             = lrucache.New(1025)
+	cache       = lrucache.New(1025)
 )
 
 // MustCreateMapper similar CreateMapper just ignore error
@@ -34,11 +34,11 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	sourceType = indirectType(sourceType)
 	destType = indirectType(destType)
 	newMappingInfo := &MappingInfo{
-		Key: sourceType.String() +"=>" + destType.String(),
+		Key:        sourceType.String() + "=>" + destType.String(),
 		SourceType: sourceType,
 		DestType:   destType,
 		MapFileds:  []IStructConverter{},
-		MapFunc:	[]func (interface{}, interface{}){},
+		MapFunc:    []func(interface{}, interface{}){},
 	}
 
 	mappingInfosMap, ok := mapperStore[sourceType]
@@ -53,11 +53,11 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
 	}
 	//map => map
-	if isString2InterfaceMap(destType) && isString2InterfaceMap(sourceType) {
+	if  destType.Kind() == reflect.Map && sourceType.Kind() == reflect.Map {
 		newMappingInfo.Type = MapToMap
 		newMappingInfo.AddField(&MapToMapMappingField{
-			sourceType.Elem(),
-			destType.Elem(),
+			sourceType,
+			destType,
 		})
 		goto End
 	}
@@ -66,6 +66,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	if isString2InterfaceMap(sourceType) && destType.Kind() == reflect.Struct {
 		newMappingInfo.Type = MapToStruct
 		newMappingInfo.AddField(&MapToStructMappingField{
+			deepFields(destType),
 		})
 		goto End
 	}
@@ -74,13 +75,14 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	if isString2InterfaceMap(destType) && sourceType.Kind() == reflect.Struct {
 		newMappingInfo.Type = StructToMap
 		newMappingInfo.AddField(&MapToStructMappingField{
+			deepFields(sourceType),
 		})
 		goto End
 	}
 
 	//Array => Array
 	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Array {
-		childMapping, _ := ensureMapping(sourceType, destType)
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
 		newMappingInfo.Type = ArrayToArray
 		newMappingInfo.AddField(&Array2ArrayMappingField{
 			sourceType.Elem(),
@@ -92,22 +94,47 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	}
 	//Slice => Array
 	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Array {
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
 		newMappingInfo.Type = SliceToArray
 		newMappingInfo.AddField(&Slice2ArrayMappingField{
+			sourceType.Elem(),
+			destType.Elem(),
+			sourceType.Len(),
+			childMapping,
 		})
 		goto End
 	}
 	//Array => Slice
 	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Slice {
 		newMappingInfo.Type = ArrayToSlice
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
+		newMappingInfo.Type = ArrayToArray
 		newMappingInfo.AddField(&Array2SliceMappingField{
+			sourceType.Elem(),
+			destType.Elem(),
+			sourceType.Len(),
+			childMapping,
 		})
 		goto End
 	}
 	//Slice => Slice
 	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Slice {
+		newMappingInfo.Type = ArrayToSlice
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
 		newMappingInfo.Type = SliceToSlice
 		newMappingInfo.AddField(&Slice2SliceMappingField{
+			sourceType.Elem(),
+			destType.Elem(),
+			childMapping,
+		})
+		goto End
+	}
+
+	if sourceType == destType {
+		newMappingInfo.Type = SameType
+		newMappingInfo.AddField(&SameTypeMappingField{
+			sourceType,
+			destType,
 		})
 		goto End
 	}
@@ -170,16 +197,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		}
 		goto End
 	}
-
-	if sourceType == destType {
-		newMappingInfo.Type = SameType
-		newMappingInfo.AddField(&SameTypeMappingField{
-			sourceType,
-			destType,
-		})
-		goto End
-	}
-	End:
+End:
 	//add simply type convert mapping such as int to string
 	return newMappingInfo, nil
 }
@@ -205,10 +223,13 @@ func MustMapper(source interface{}, destType reflect.Type) interface{} {
 	defer func() {
 		lock.Unlock()
 	}()
-	val, _ := mapper(source, destType)
-	return val
+	reflectValue, _ := mapper(source, destType)
+	if destType.Kind() == reflect.Ptr {
+		return reflectValue.Addr().Interface()
+	} else {
+		return reflectValue.Interface()
+	}
 }
-
 
 //Mapper similar to mapper but thread safe
 func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
@@ -216,72 +237,72 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	defer func() {
 		lock.Unlock()
 	}()
-	return mapper(source, destType)
-}
-
-// mapper convert source to destType
-func mapper(source interface{}, destType reflect.Type) (interface{}, error) {
-	mapping, _ := ensureMapping(reflect.TypeOf(source), destType)
-	destValue, err := mapping.mapper(source)
+	reflectValue, err := mapper(source, destType)
 	if err != nil {
 		return nil, err
 	}
 	if destType.Kind() == reflect.Ptr {
-		return destValue.Addr().Interface(), nil
-	}else{
-		return destValue.Interface(), nil
+		return reflectValue.Addr().Interface(), nil
+	} else {
+		return reflectValue.Interface(), nil
 	}
+}
+
+// mapper convert source to destType
+func mapper(source interface{}, destType reflect.Type) (reflect.Value, error) {
+	mapping, _ := ensureMapping(reflect.TypeOf(source), destType)
+	return mapping.mapper(source)
 }
 
 // Mapper get a instance by given source value and dest type
 func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error) {
-	sourceValue   	:= reflect.Indirect(reflect.ValueOf(source))
-	destValue    	:= reflect.New(indirectType(mappingInfo.DestType)).Elem()
+	originSourceValue := reflect.ValueOf(source)
+	sourceValue := reflect.Indirect(originSourceValue)
+	destValue := reflect.ValueOf(nil)
+	if isNil(originSourceValue) {
+		return destValue, nil
+	}
+	destValue = reflect.New(indirectType(mappingInfo.DestType)).Elem()
 	switch mappingInfo.Type {
-		case 	None   :
-		case	AnyType :
-			//mappingInfo.
-			//TODO
-		case	SameType :
-			err := mappingInfo.MapFileds[0].Convert(sourceValue, destValue)
+	case None:
+	case AnyType:
+		//mappingInfo.
+		//TODO
+	case SameType:
+		err := mappingInfo.MapFileds[0].Convert(sourceValue, destValue)
+		if err != nil {
+			return reflect.ValueOf(nil), err
+		}
+	case ArrayToArray:
+		fallthrough
+	case ArrayToSlice:
+		fallthrough
+	case SliceToArray:
+		fallthrough
+	case SliceToSlice:
+		fallthrough
+	case MapToMap:
+		fallthrough
+	case StructToMap:
+		fallthrough
+	case MapToStruct:
+		err := mappingInfo.MapFileds[0].Convert(sourceValue, destValue)
+		if err != nil {
+			return reflect.ValueOf(nil), err
+		}
+	case StructToStrucgt:
+		destFieldValues := deepValue(destValue)
+		sourceFields := deepValue(sourceValue)
+		for _, mappingField := range mappingInfo.MapFileds {
+			structFieldMapping := mappingField.(*StructFieldMap)
+			sourceFieldValue := sourceFields[structFieldMapping.FromField.FiledIndex]
+			destFieldValue := destFieldValues[structFieldMapping.ToField.FiledIndex]
+			err := structFieldMapping.Convert(sourceFieldValue, destFieldValue)
 			if err != nil {
 				return reflect.ValueOf(nil), err
 			}
-			//TODO
-		case	ArrayMap :
-			//TODO
-		case	MapToMap :
-			//TODO
-		case	StructToMap :
-			//TODO
-		case	MapToStruct :
-			//TODO
-		case	ArrayToArray :
-			//TODO
-		case	ArrayToSlice :
-			//TODO
-		case	SliceToArray :
-			//TODO
-		case	SliceToSlice :
-			//TODO
-		case StructToStrucgt:
-			if !destValue.IsNil() {
-				destFieldValues := deepValue(destValue)
-				sourceFields 	:= deepValue(sourceValue)
-				for _, mappingField := range mappingInfo.MapFileds {
-					structFieldMapping :=  mappingField.(*StructFieldField)
-					sourceFieldValue := sourceFields[structFieldMapping.FromField.FiledIndex]
-					destFieldValue := destFieldValues[structFieldMapping.ToField.FiledIndex]
-					err := structFieldMapping.Convert(sourceFieldValue, destFieldValue)
-					if err != nil {
-						return reflect.ValueOf(nil), err
-					}
-				}
-			}
+		}
 	}
-	
-	
-
 
 	for _, mapFunc := range mappingInfo.MapFunc {
 		mapFunc(destValue.Addr().Interface(), sourceValue.Addr().Interface())
@@ -289,6 +310,22 @@ func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error
 	return destValue, nil
 }
 
+func isNil(val reflect.Value) bool {
+	if val.Kind() == reflect.Invalid {
+		return true
+	}
+	if (val.Kind() == reflect.Chan ||
+		val.Kind() == reflect.Func ||
+		val.Kind() == reflect.Chan ||
+		val.Kind() == reflect.Map ||
+		val.Kind() == reflect.Ptr ||
+		val.Kind() == reflect.UnsafePointer ||
+		val.Kind() == reflect.Interface ||
+		val.Kind() == reflect.Slice) && val.IsNil() {
+		return true
+	}
+	return false
+}
 func indirectType(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Ptr {
 		return t.Elem()
@@ -316,12 +353,12 @@ func ensureMapping(sourceType, destType reflect.Type) (*MappingInfo, bool) {
 	}
 	mappingInfosMaps, ok := mapperStore[sourceType]
 	if !ok {
-		mapping, _:=  createMapper(sourceType, destType)
+		mapping, _ := createMapper(sourceType, destType)
 		return mapping, true
 	}
 	mappingInfosMap, ok := mappingInfosMaps[destType]
 	if !ok {
-		mapping, _:=  createMapper(sourceType, destType)
+		mapping, _ := createMapper(sourceType, destType)
 		return mapping, true
 	}
 	return mappingInfosMap, false

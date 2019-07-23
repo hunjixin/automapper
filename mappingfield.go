@@ -10,25 +10,32 @@ type IStructConverter interface {
 
 // StructToMapMappingField
 type MapToMapMappingField struct {
-
 	SoureValueType reflect.Type
-	DestValueType reflect.Type
+	DestValueType  reflect.Type
 }
 
 // MapToStructMappingField deep child field and convert to map
 func (mapToMapMappingField *MapToMapMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	mappingInfo, _ :=ensureMapping(mapToMapMappingField.SoureValueType.Elem(), mapToMapMappingField.DestValueType.Elem())
+	mappingInfo, _ := ensureMapping(mapToMapMappingField.SoureValueType.Elem(), mapToMapMappingField.DestValueType.Elem())
 	sourceMapIter := sourceFieldValue.MapRange()
 	destFieldValue.Set(reflect.MakeMap(mapToMapMappingField.DestValueType))
-	for ;sourceMapIter.Next(); {
+	for sourceMapIter.Next() {
 		val, err := mappingInfo.mapper(sourceMapIter.Value().Interface())
 		if err != nil {
 			return err
 		}
-		if mapToMapMappingField.DestValueType.Kind() == reflect.Ptr {
-			destFieldValue.SetMapIndex(sourceMapIter.Key(), val.Addr())
-		}else{
-			destFieldValue.SetMapIndex(sourceMapIter.Key(), val)
+		if val.IsValid() {
+			if mapToMapMappingField.DestValueType.Kind() == reflect.Ptr {
+				if val.CanAddr() {
+					destFieldValue.SetMapIndex(sourceMapIter.Key(), val.Addr())
+				}else{
+					copyVal := reflect.New(val.Type()).Elem()
+					copyVal.Set(val)
+					destFieldValue.SetMapIndex(sourceMapIter.Key(), copyVal.Addr())
+				}
+			} else {
+				destFieldValue.SetMapIndex(sourceMapIter.Key(), val)
+			}
 		}
 	}
 	return nil
@@ -36,22 +43,21 @@ func (mapToMapMappingField *MapToMapMappingField) Convert(sourceFieldValue refle
 
 // StructToMapMappingField
 type MapToStructMappingField struct {
-
+	ToFields []*structField
 }
 
 // MapToStructMappingField deep child field and convert to map
 func (mapToStructMappingField *MapToStructMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	fields := deepFields(indirectType(destFieldValue.Type()))
 	values := deepValue(destFieldValue)
 	if sourceFieldValue.IsNil() {
 		destFieldValue.Set(reflect.ValueOf(nil))
 	}
-    sourceMap := reflect.Indirect(sourceFieldValue)
+	sourceMap := reflect.Indirect(sourceFieldValue)
 	mapIter := sourceMap.MapRange()
-	for ;mapIter.Next(); {
+	for mapIter.Next() {
 		for index, valueField := range values {
-			if fields[index].Name() == mapIter.Key().Interface().(string) {
-				valueField.Set(mapIter.Value().Elem())
+			if mapToStructMappingField.ToFields[index].Name() == mapIter.Key().Interface().(string) {
+				setValue(valueField, mapIter.Value().Elem())
 			}
 		}
 	}
@@ -59,113 +65,159 @@ func (mapToStructMappingField *MapToStructMappingField) Convert(sourceFieldValue
 	return nil
 }
 
-
+func setValue(destValue, sourceValue reflect.Value){
+	if !sourceValue.IsValid() {
+		return
+	}
+	if destValue.Kind() == reflect.Ptr {
+		if sourceValue.CanAddr() {
+			destValue.Set(sourceValue.Addr())
+		}else{
+			val := reflect.New(sourceValue.Type()).Elem()
+			val.Set(sourceValue)
+			destValue.Set(val.Addr())
+		}
+	} else {
+		destValue.Set(sourceValue)
+	}
+}
 // StructToMapMappingField
 type StructToMapMappingField struct {
-
+	FromFields []*structField
 }
 
 // StructToMapMappingField deep child field and convert to map
 func (structToMapMappingField *StructToMapMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	fields := deepFields(indirectType(sourceFieldValue.Type()))
 	values := deepValue(sourceFieldValue)
 	if destFieldValue.IsNil() {
 		destFieldValue.Set(reflect.ValueOf(map[string]interface{}{}))
 	}
 
-	for _, field := range fields {
-		destFieldValue.SetMapIndex(reflect.ValueOf(field.Name()), values[field.FiledIndex])
+	for _, field := range structToMapMappingField.FromFields {
+		key := reflect.ValueOf(field.Name())
+		val := values[field.FiledIndex]
+		if val.IsValid() {
+			if destFieldValue.Type().Kind() == reflect.Ptr {
+				if val.CanAddr() {
+					destFieldValue.SetMapIndex(key, val.Addr())
+				}else{
+					copyVal := reflect.New(val.Type()).Elem()
+					copyVal.Set(val)
+					destFieldValue.SetMapIndex(key, copyVal.Addr())
+				}
+			} else {
+				destFieldValue.SetMapIndex(key, val)
+			}
+		}
 	}
 	return nil
 }
 
-
-
 type Array2ArrayMappingField struct {
-
-	FromFieldType  reflect.Type
-	ToFieldType    reflect.Type
-	Length int
-	ChildMapping *MappingInfo
+	FromFieldType reflect.Type
+	ToFieldType   reflect.Type
+	Length        int
+	ChildMapping  *MappingInfo
 }
 
 func (array2ArrayMappingField *Array2ArrayMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	for i:=0;i<array2ArrayMappingField.Length;i++ {
+	for i := 0; i < array2ArrayMappingField.Length; i++ {
 		childVal, err := mapper(sourceFieldValue.Index(i).Interface(), array2ArrayMappingField.ToFieldType)
 		if err != nil {
 			return err
 		}
-		destFieldValue.Set(reflect.ValueOf(childVal))
+		setValue(destFieldValue.Index(i), childVal)
 	}
-
 	return nil
 }
 
 type Slice2ArrayMappingField struct {
-
+	FromFieldType reflect.Type
+	ToFieldType   reflect.Type
+	ArrayLen      int
+	ChildMapping  *MappingInfo
 }
 
 func (slice2ArrayMappingField *Slice2ArrayMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	//TODO
+	if destFieldValue.Len() != slice2ArrayMappingField.ArrayLen {
+		return ErrLengthNotMatch
+	}
+	for i := 0; i < slice2ArrayMappingField.ArrayLen; i++ {
+		childVal, err := mapper(sourceFieldValue.Index(i).Interface(), slice2ArrayMappingField.ToFieldType)
+		if err != nil {
+			return err
+		}
+		setValue(destFieldValue.Index(i), childVal)
+	}
+
 	return nil
 }
 
 type Slice2SliceMappingField struct {
-
+	FromFieldType reflect.Type
+	ToFieldType   reflect.Type
+	ChildMapping  *MappingInfo
 }
 
 func (slice2SliceMappingField *Slice2SliceMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	//TODO
+	sourceLen := sourceFieldValue.Len()
+	destFieldValue.Set(reflect.MakeSlice(destFieldValue.Type(), sourceLen, sourceLen))
+	for i := 0; i < sourceLen; i++ {
+		childVal, err := mapper(sourceFieldValue.Index(i).Interface(), slice2SliceMappingField.ToFieldType)
+		if err != nil {
+			return err
+		}
+		setValue(destFieldValue.Index(i), childVal)
+	}
 	return nil
 }
 
 type Array2SliceMappingField struct {
-
+	FromFieldType reflect.Type
+	ToFieldType   reflect.Type
+	ArrayLen      int
+	ChildMapping  *MappingInfo
 }
 
 func (array2ArrayMappingField *Array2SliceMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	//TODO
+	if sourceFieldValue.Len() != array2ArrayMappingField.ArrayLen {
+		return ErrLengthNotMatch
+	}
+	newSlices := reflect.MakeSlice(destFieldValue.Type(), array2ArrayMappingField.ArrayLen, array2ArrayMappingField.ArrayLen)
+	for i := 0; i < array2ArrayMappingField.ArrayLen; i++ {
+		childVal, err := mapper(sourceFieldValue.Index(i).Interface(), array2ArrayMappingField.ToFieldType)
+		if err != nil {
+			return err
+		}
+		setValue(newSlices.Index(i), childVal)
+	}
+	destFieldValue.Set(newSlices)
 	return nil
 }
 
-
-
-
 type ChildrenMappingField struct {
-
 	ChildMapping *MappingInfo
 }
 
 func (cildrenMappingField *ChildrenMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-
 	childVal, err := cildrenMappingField.ChildMapping.mapper(sourceFieldValue.Interface())
 	if err != nil {
 		return err
 	}
-	if destFieldValue.Kind() == reflect.Ptr {
-		destFieldValue.Set(childVal.Addr())
-	}else{
-		destFieldValue.Set(childVal)
-	}
+	setValue(destFieldValue, childVal)
 	return nil
 }
 
-
-
 type NoneMappingField struct {
-
 }
 
 func (noneMappingField *NoneMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
 	panic("never come here")
 }
 
-
-
 type SameTypeMappingField struct {
-
 	SourceType reflect.Type
-	DestType reflect.Type
+	DestType   reflect.Type
 }
 
 func (sameTypeMappingField *SameTypeMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
@@ -173,10 +225,7 @@ func (sameTypeMappingField *SameTypeMappingField) Convert(sourceFieldValue refle
 	return nil
 }
 
-
-
 type AnyMappingField struct {
-
 }
 
 func (anyMappingField *AnyMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
@@ -184,18 +233,17 @@ func (anyMappingField *AnyMappingField) Convert(sourceFieldValue reflect.Value, 
 	return nil
 }
 
-type StructFieldField struct {
-	FromField *structField
-	ToField   *structField
+type StructFieldMap struct {
+	FromField    *structField
+	ToField      *structField
 	ChildMapping *MappingInfo
 }
 
-func (structFieldField *StructFieldField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	val, err :=structFieldField.ChildMapping.mapper(sourceFieldValue.Interface())
+func (structFieldMap *StructFieldMap) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	val, err := structFieldMap.ChildMapping.mapper(sourceFieldValue.Interface())
 	if err != nil {
 		return err
 	}
-	destFieldValue.Set(val)
+	setValue(destFieldValue, val)
 	return nil
 }
-

@@ -8,7 +8,7 @@ import (
 // structField wrap reflect.structField.  FiledIndex recored field index include enbed types, Path indirect the path to enbed field like .Enbed.XXX
 type structField struct {
 	reflect.StructField
-	MappingTag    string
+	MappingTag string
 	Ignore     bool
 	ForceName  string
 	FiledIndex int
@@ -18,16 +18,16 @@ type structField struct {
 func newStructField(rField reflect.StructField, mappingTag string, fieldIndex int, path string) *structField {
 	structField := &structField{
 		MappingTag: mappingTag,
-		FiledIndex:fieldIndex,
-		Path:path,
+		FiledIndex: fieldIndex,
+		Path:       path,
 	}
 	structField.StructField = rField
-	if len(mappingTag) ==0 {
+	if len(mappingTag) == 0 {
 		return structField
 	}
-	arr := strings.Split(mappingTag,",")
-	for i:= 0;i<len(arr);i++ {
-		arr[i] = strings.Trim(arr[i]," \t")
+	arr := strings.Split(mappingTag, ",")
+	for i := 0; i < len(arr); i++ {
+		arr[i] = strings.Trim(arr[i], " \t")
 	}
 	except(arr, " ")
 	if contain(arr, "ignore") {
@@ -40,13 +40,13 @@ func newStructField(rField reflect.StructField, mappingTag string, fieldIndex in
 	return structField
 }
 
-func except(strs []string, s string)  {
+func except(strs []string, s string) {
 	length := len(strs)
-	for i:= length -1;i>-1;i-- {
+	for i := length - 1; i > -1; i-- {
 		if strs[i] == s {
-			if i == length -1 {
+			if i == length-1 {
 				strs = strs[:i]
-			}else{
+			} else {
 				strs = append(strs[:i], strs[i+1:]...)
 			}
 		}
@@ -54,7 +54,7 @@ func except(strs []string, s string)  {
 }
 
 func contain(strs []string, s string) bool {
-	for i:= 0;i<len(strs);i++ {
+	for i := 0; i < len(strs); i++ {
 		if strs[i] == s {
 			return true
 		}
@@ -63,7 +63,7 @@ func contain(strs []string, s string) bool {
 }
 
 func (structField *structField) Name() string {
-	if len(structField.ForceName) > 0 {  //tag
+	if len(structField.ForceName) > 0 { //tag
 		return structField.ForceName
 	}
 	return structField.StructField.Name
@@ -81,7 +81,7 @@ func internalDeepFields(ift reflect.Type, index *intVal, key string) []*structFi
 	fields := make([]*structField, 0)
 	for i := 0; i < ift.NumField(); i++ {
 		f := ift.Field(i)
-		newKey :=  "[" + ift.Name() + "]"
+		newKey := key + "[" + f.Name + "]"
 		if f.Type.Kind() == reflect.Chan ||
 			f.Type.Kind() == reflect.Func ||
 			f.Type.Kind() == reflect.UnsafePointer {
@@ -90,7 +90,7 @@ func internalDeepFields(ift reflect.Type, index *intVal, key string) []*structFi
 		if f.Type.Kind() == reflect.Struct && f.Anonymous {
 			fields = append(fields, internalDeepFields(f.Type, index, newKey)...)
 		} else {
-			field := newStructField(f,f.Tag.Get("mapping"),index.I, newKey)
+			field := newStructField(f, f.Tag.Get("mapping"), index.I, newKey)
 			fields = append(fields, field)
 			index.plus(1)
 		}
