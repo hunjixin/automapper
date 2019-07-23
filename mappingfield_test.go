@@ -15,12 +15,33 @@ type ToB struct {
 	InnerA map[string]interface{}
 }
 
+func TestMapToMapMappingField(t *testing.T) {
+	fromMap := map[string]string {
+		"xx":"ggg",
+	}
+	mappingField := &MapToMapMappingField{
+		BaseMappingField{
+		},
+		reflect.TypeOf(fromMap),
+		reflect.TypeOf(fromMap),
+	}
+	val :=  reflect.New(reflect.TypeOf(fromMap)).Elem()
+	err := mappingField.Convert(reflect.ValueOf(fromMap), val)
+	if err != nil {
+		t.Error(err)
+	}
+	mapVal := val.Interface().(map[string]string)
+	if mapVal["xx"] != fromMap["xx"] {
+		t.Errorf("Expected value  %s is not equal to the original value %s", fromMap["xx"], mapVal["xx"] )
+	}
+}
+
+
 func TestStructToMapMappingField(t *testing.T) {
 	fromFields := deepFields(reflect.TypeOf(FromA{}))
 	toFields := deepFields(reflect.TypeOf(ToB{}))
 	mappingField := &StructToMapMappingField{
 		BaseMappingField{
-			Type:      StructToMap,
 			FromField: fromFields[0],
 			ToField:   toFields[0],
 		},
@@ -48,7 +69,6 @@ func TestMapToStructMappingField(t *testing.T) {
 	toFields := deepFields(reflect.TypeOf(A{}))
 	mappingField := &MapToStructMappingField{
 		BaseMappingField{
-			Type:      MapToStruct,
 			FromField:  nil,
 			ToField:   toFields[0],
 		},

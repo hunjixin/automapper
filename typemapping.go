@@ -7,7 +7,6 @@ const (
 	AnyType
 	SameType
 	ArrayMap
-	ChildMap
 	MapToMap
 	StructToMap
 	MapToStruct
@@ -15,14 +14,20 @@ const (
 	ArrayToSlice
 	SliceToArray
 	SliceToSlice
+	StructToStrucgt
+	StructField
 )
 
 // MappingInfo recored field mapping information
 type MappingInfo struct {
 	Key        string
+	Type      int
 	SourceType reflect.Type
 	DestType   reflect.Type
 	MapFileds  []IStructConverter
+
+	FromFields []*structField
+	ToField    []*structField
 	MapFunc    []func (interface{}, interface{})
 }
 
@@ -37,38 +42,10 @@ func (mappingInfo *MappingInfo) Mapping(mapFunc func (interface{}, interface{}))
 
 // tryAddNameFieldMapping analysis mapping time and add it to MapFields
 func (mappingInfo *MappingInfo) tryAddNameFieldMapping(sourceFiled, destFiled *structField) bool {
-	if sourceFiled.Type.Kind() == reflect.Interface {
-		anyMapingField := &AnyMappingField{
-			BaseMappingField{
-				Type:      AnyType,
-				FromField: sourceFiled,
-				ToField:   destFiled,
-			},
-		}
-		mappingInfo.MapFileds = append(mappingInfo.MapFileds, anyMapingField)
-	}
-	if sourceFiled.Type == destFiled.Type {
-		mappingField := &SameTypeMappingField{
-			BaseMappingField{
-				Type:      SameType,
-				FromField: sourceFiled,
-				ToField:   destFiled,
-			},
-		}
-		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
-	} else {
-		mapping, _ := ensureMapping(sourceFiled.Type, destFiled.Type)
-		mappingField := &ChildrenMappingField{
-			BaseMappingField{
-				Type:      ChildMap,
-				FromField: sourceFiled,
-				ToField:   destFiled,
-			},
-			mapping,
-		}
-		mappingInfo.MapFileds = append(mappingInfo.MapFileds, mappingField)
-	}
-	return false
+	mappingInfo.Type = StructToStrucgt
+	childMapping, _ := ensureMapping(sourceFiled.Type, destFiled.Type)
+	mappingInfo.MapFileds = append(mappingInfo.MapFileds, &StructFieldField{sourceFiled, destFiled,childMapping})
+	return true
 }
 
 // Interface/Map/Ptr/Slice/String/Struct/UnsafePointer/Array

@@ -52,74 +52,64 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	} else {
 		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
 	}
-
 	//map => map
 	if isString2InterfaceMap(destType) && isString2InterfaceMap(sourceType) {
+		newMappingInfo.Type = MapToMap
 		newMappingInfo.AddField(&MapToMapMappingField{
-			BaseMappingField{
-				Type:      MapToMap,
-				FromField:  nil,
-			},
+			sourceType.Elem(),
+			destType.Elem(),
 		})
+		goto End
 	}
 
 	// map => struct
 	if isString2InterfaceMap(sourceType) && destType.Kind() == reflect.Struct {
+		newMappingInfo.Type = MapToStruct
 		newMappingInfo.AddField(&MapToStructMappingField{
-			BaseMappingField{
-				Type:      MapToStruct,
-				FromField:  nil,
-			},
 		})
+		goto End
 	}
 
 	//struct => map
 	if isString2InterfaceMap(destType) && sourceType.Kind() == reflect.Struct {
+		newMappingInfo.Type = StructToMap
 		newMappingInfo.AddField(&MapToStructMappingField{
-			BaseMappingField{
-				Type:      StructToMap,
-				FromField:  nil,
-			},
 		})
+		goto End
 	}
 
 	//Array => Array
 	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Array {
 		childMapping, _ := ensureMapping(sourceType, destType)
+		newMappingInfo.Type = ArrayToArray
 		newMappingInfo.AddField(&Array2ArrayMappingField{
-			BaseMappingField{
-				Type:      ArrayToArray,
-				FromField:  nil,
-			},
 			sourceType.Elem(),
 			destType.Elem(),
 			sourceType.Len(),
 			childMapping,
 		})
+		goto End
 	}
 	//Slice => Array
 	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Array {
+		newMappingInfo.Type = SliceToArray
 		newMappingInfo.AddField(&Slice2ArrayMappingField{
-			BaseMappingField{
-				Type:      SliceToArray,
-			},
 		})
+		goto End
 	}
 	//Array => Slice
 	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Slice {
+		newMappingInfo.Type = ArrayToSlice
 		newMappingInfo.AddField(&Array2SliceMappingField{
-			BaseMappingField{
-				Type:      ArrayToSlice,
-			},
 		})
+		goto End
 	}
 	//Slice => Slice
 	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Slice {
+		newMappingInfo.Type = SliceToSlice
 		newMappingInfo.AddField(&Slice2SliceMappingField{
-			BaseMappingField{
-				Type:      SliceToSlice,
-			},
 		})
+		goto End
 	}
 
 	//struct => struct
@@ -129,6 +119,8 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		sourceGroupFields := groupFiled(allSourceFileds)
 		destFileds := deepFields(destType)
 		destGroupFields := groupFiled(destFileds)
+		newMappingInfo.FromFields = allSourceFileds
+		newMappingInfo.ToField = destFileds
 
 		for name, oneSourceGroupField := range sourceGroupFields {
 			oneDestGoupField, exist := destGroupFields[name]
@@ -176,7 +168,18 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 				}
 			}
 		}
+		goto End
 	}
+
+	if sourceType == destType {
+		newMappingInfo.Type = SameType
+		newMappingInfo.AddField(&SameTypeMappingField{
+			sourceType,
+			destType,
+		})
+		goto End
+	}
+	End:
 	//add simply type convert mapping such as int to string
 	return newMappingInfo, nil
 }
@@ -234,25 +237,52 @@ func mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error) {
 	sourceValue   	:= reflect.Indirect(reflect.ValueOf(source))
 	destValue    	:= reflect.New(indirectType(mappingInfo.DestType)).Elem()
-
-	destFieldValues := deepValue(destValue)
-	sourceFields 	:= deepValue(sourceValue)
-
-	for _, mappingField := range mappingInfo.MapFileds {
-		sourceFieldValue := sourceFields[mappingField.GetFromField().FiledIndex]
-		if (sourceFieldValue.Kind() == reflect.Ptr ||
-			sourceFieldValue.Kind() == reflect.Map ||
-			sourceFieldValue.Kind() == reflect.Slice) &&
-			sourceFieldValue.IsNil() {
-			continue
-		} else {
-			destFieldValue := destFieldValues[mappingField.GetToField().FiledIndex]
-			err := mappingField.Convert(sourceFieldValue, destFieldValue)
+	switch mappingInfo.Type {
+		case 	None   :
+		case	AnyType :
+			//mappingInfo.
+			//TODO
+		case	SameType :
+			err := mappingInfo.MapFileds[0].Convert(sourceValue, destValue)
 			if err != nil {
 				return reflect.ValueOf(nil), err
 			}
-		}
+			//TODO
+		case	ArrayMap :
+			//TODO
+		case	MapToMap :
+			//TODO
+		case	StructToMap :
+			//TODO
+		case	MapToStruct :
+			//TODO
+		case	ArrayToArray :
+			//TODO
+		case	ArrayToSlice :
+			//TODO
+		case	SliceToArray :
+			//TODO
+		case	SliceToSlice :
+			//TODO
+		case StructToStrucgt:
+			if !destValue.IsNil() {
+				destFieldValues := deepValue(destValue)
+				sourceFields 	:= deepValue(sourceValue)
+				for _, mappingField := range mappingInfo.MapFileds {
+					structFieldMapping :=  mappingField.(*StructFieldField)
+					sourceFieldValue := sourceFields[structFieldMapping.FromField.FiledIndex]
+					destFieldValue := destFieldValues[structFieldMapping.ToField.FiledIndex]
+					err := structFieldMapping.Convert(sourceFieldValue, destFieldValue)
+					if err != nil {
+						return reflect.ValueOf(nil), err
+					}
+				}
+			}
 	}
+	
+	
+
+
 	for _, mapFunc := range mappingInfo.MapFunc {
 		mapFunc(destValue.Addr().Interface(), sourceValue.Addr().Interface())
 	}
