@@ -33,9 +33,6 @@ func CreateMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	sourceType = indirectType(sourceType)
 	destType = indirectType(destType)
-	if sourceType.Kind() != reflect.Struct || destType.Kind() != reflect.Struct {
-		return nil, ErrNotStruct
-	}
 	newMappingInfo := &MappingInfo{
 		Key: sourceType.String() +"=>" + destType.String(),
 		SourceType: sourceType,
@@ -55,48 +52,98 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	} else {
 		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
 	}
-	// get deep field and group fields by name
-	allSourceFileds := deepFields(sourceType)
-	sourceGroupFields := groupFiled(allSourceFileds)
-	destFileds := deepFields(destType)
-	destGroupFields := groupFiled(destFileds)
 
-	for name, oneSourceGroupField := range sourceGroupFields {
-		oneDestGoupField, exist := destGroupFields[name]
-		if !exist {
-			continue
-		}
-		if len(oneSourceGroupField) == 1 {
-			if len(oneDestGoupField) == 1 {
-				// 1 to 1
-				sourceField := oneSourceGroupField[0]
-				destField := oneDestGoupField[0]
-				newMappingInfo.tryAddNameFieldMapping(sourceField, destField)
-			} else {
-				//1 to many
-				sourceFiled := oneSourceGroupField[0]
-				for j := 0; j < len(oneDestGoupField); j++ {
-					destField := oneDestGoupField[j]
-					if sourceFiled.Path == destField.Path {
-						newMappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
-					}
-				}
+	//map => map
+	if isString2InterfaceMap(destType) && isString2InterfaceMap(sourceType) {
+		newMappingInfo.AddField(&MapToMapMappingField{
+			BaseMappingField{
+				Type:      MapToMap,
+				FromField:  nil,
+			},
+		})
+	}
+
+	// map => struct
+	if isString2InterfaceMap(sourceType) && destType.Kind() == reflect.Struct {
+		newMappingInfo.AddField(&MapToStructMappingField{
+			BaseMappingField{
+				Type:      MapToStruct,
+				FromField:  nil,
+			},
+		})
+	}
+
+	//struct => map
+	if isString2InterfaceMap(destType) && sourceType.Kind() == reflect.Struct {
+		newMappingInfo.AddField(&MapToStructMappingField{
+			BaseMappingField{
+				Type:      StructToMap,
+				FromField:  nil,
+			},
+		})
+	}
+
+	//Array => Array
+	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Array {
+		childMapping, _ := ensureMapping(sourceType, destType)
+		newMappingInfo.AddField(&Array2ArrayMappingField{
+			BaseMappingField{
+				Type:      ArrayToArray,
+				FromField:  nil,
+			},
+			sourceType.Elem(),
+			destType.Elem(),
+			sourceType.Len(),
+			childMapping,
+		})
+	}
+	//Slice => Array
+	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Array {
+		newMappingInfo.AddField(&Slice2ArrayMappingField{
+			BaseMappingField{
+				Type:      SliceToArray,
+			},
+		})
+	}
+	//Array => Slice
+	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Slice {
+		newMappingInfo.AddField(&Array2SliceMappingField{
+			BaseMappingField{
+				Type:      ArrayToSlice,
+			},
+		})
+	}
+	//Slice => Slice
+	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Slice {
+		newMappingInfo.AddField(&Slice2SliceMappingField{
+			BaseMappingField{
+				Type:      SliceToSlice,
+			},
+		})
+	}
+
+	//struct => struct
+	if sourceType.Kind() == reflect.Struct && destType.Kind() == reflect.Struct {
+		// get deep field and group fields by name
+		allSourceFileds := deepFields(sourceType)
+		sourceGroupFields := groupFiled(allSourceFileds)
+		destFileds := deepFields(destType)
+		destGroupFields := groupFiled(destFileds)
+
+		for name, oneSourceGroupField := range sourceGroupFields {
+			oneDestGoupField, exist := destGroupFields[name]
+			if !exist {
+				continue
 			}
-		} else {
-			if len(oneDestGoupField) == 1 {
-				// many to 1
-				destField := oneDestGoupField[0]
-				for j := 0; j < len(oneSourceGroupField); j++ {
-					sourceFiled := oneSourceGroupField[j]
-					if sourceFiled.Path == destField.Path {
-						newMappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
-						break
-					}
-				}
-			} else {
-				//many to many
-				for i := 0; i < len(oneSourceGroupField); i++ {
-					sourceFiled := oneSourceGroupField[i]
+			if len(oneSourceGroupField) == 1 {
+				if len(oneDestGoupField) == 1 {
+					// 1 to 1
+					sourceField := oneSourceGroupField[0]
+					destField := oneDestGoupField[0]
+					newMappingInfo.tryAddNameFieldMapping(sourceField, destField)
+				} else {
+					//1 to many
+					sourceFiled := oneSourceGroupField[0]
 					for j := 0; j < len(oneDestGoupField); j++ {
 						destField := oneDestGoupField[j]
 						if sourceFiled.Path == destField.Path {
@@ -104,34 +151,33 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 						}
 					}
 				}
-			}
-		}
-	}
-
-	/*
-	for _, mappingInfosMap := range mapperStore {
-		for _, oldMappingInfo := range mappingInfosMap {
-			for i := len(oldMappingInfo.MapFileds) - 1; i > -1; i-- {
-				mapField := oldMappingInfo.MapFileds[i]
-				if mapField.GetType() == None &&
-					indirectType(mapField.GetFromField().StructField.Type) == sourceType &&
-					indirectType(mapField.GetToField().StructField.Type) == destType {
-					field := mapField.(*NoneMappingField)
-					childMapField := &ChildrenMappingField{
-						BaseMappingField{
-							Type:      ChildMap,
-							FromField: field.GetFromField(),
-							ToField:   field.GetToField(),
-						},
-						newMappingInfo,
+			} else {
+				if len(oneDestGoupField) == 1 {
+					// many to 1
+					destField := oneDestGoupField[0]
+					for j := 0; j < len(oneSourceGroupField); j++ {
+						sourceFiled := oneSourceGroupField[j]
+						if sourceFiled.Path == destField.Path {
+							newMappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
+							break
+						}
 					}
-					oldMappingInfo.MapFileds = append(oldMappingInfo.MapFileds, childMapField)
-					oldMappingInfo.MapFileds = append(oldMappingInfo.MapFileds[:i], oldMappingInfo.MapFileds[i+1:]...)
+				} else {
+					//many to many
+					for i := 0; i < len(oneSourceGroupField); i++ {
+						sourceFiled := oneSourceGroupField[i]
+						for j := 0; j < len(oneDestGoupField); j++ {
+							destField := oneDestGoupField[j]
+							if sourceFiled.Path == destField.Path {
+								newMappingInfo.tryAddNameFieldMapping(sourceFiled, destField)
+							}
+						}
+					}
 				}
 			}
 		}
 	}
-	*/
+	//add simply type convert mapping such as int to string
 	return newMappingInfo, nil
 }
 

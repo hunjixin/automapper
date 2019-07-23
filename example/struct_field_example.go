@@ -63,6 +63,6 @@ func main() {
 	father.IsDel = true
 	father.XX = A{"father"}
 	father.Sons = &Son{*children}
-	result := automapper.MustMapper(father, reflect.TypeOf((PersonDto)(nil)))
+	result := automapper.MustMapper(father, reflect.TypeOf((*PersonDto)(nil)))
 	fmt.Println(result)
 }

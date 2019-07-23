@@ -11,6 +11,64 @@ type IStructConverter interface {
 	GetToField() *structField
 }
 
+// StructToMapMappingField
+type MapToMapMappingField struct {
+	BaseMappingField
+}
+
+// MapToStructMappingField deep child field and convert to map
+func (mapToMapMappingField *MapToMapMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	//TODO
+	return nil
+}
+
+// StructToMapMappingField
+type MapToStructMappingField struct {
+	BaseMappingField
+}
+
+// MapToStructMappingField deep child field and convert to map
+func (mapToStructMappingField *MapToStructMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	fields := deepFields(indirectType(destFieldValue.Type()))
+	values := deepValue(destFieldValue)
+	if sourceFieldValue.IsNil() {
+		destFieldValue.Set(reflect.ValueOf(nil))
+	}
+    sourceMap := reflect.Indirect(sourceFieldValue)
+	mapIter := sourceMap.MapRange()
+	for ;mapIter.Next(); {
+		for index, valueField := range values {
+			if fields[index].Name() == mapIter.Key().Interface().(string) {
+				valueField.Set(mapIter.Value().Elem())
+			}
+		}
+	}
+
+	return nil
+}
+
+
+// StructToMapMappingField
+type StructToMapMappingField struct {
+	BaseMappingField
+}
+
+// StructToMapMappingField deep child field and convert to map
+func (structToMapMappingField *StructToMapMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	fields := deepFields(indirectType(sourceFieldValue.Type()))
+	values := deepValue(sourceFieldValue)
+	if destFieldValue.IsNil() {
+		destFieldValue.Set(reflect.ValueOf(map[string]interface{}{}))
+	}
+
+	for _, field := range fields {
+		destFieldValue.SetMapIndex(reflect.ValueOf(field.Name()), values[field.FiledIndex])
+	}
+	return nil
+}
+
+
+
 type Array2ArrayMappingField struct {
 	BaseMappingField
 	FromFieldType  reflect.Type
@@ -31,6 +89,36 @@ func (array2ArrayMappingField *Array2ArrayMappingField) Convert(sourceFieldValue
 	return nil
 }
 
+type Slice2ArrayMappingField struct {
+	BaseMappingField
+}
+
+func (slice2ArrayMappingField *Slice2ArrayMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	//TODO
+	return nil
+}
+
+type Slice2SliceMappingField struct {
+	BaseMappingField
+}
+
+func (slice2SliceMappingField *Slice2SliceMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	//TODO
+	return nil
+}
+
+type Array2SliceMappingField struct {
+	BaseMappingField
+}
+
+func (array2ArrayMappingField *Array2SliceMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	//TODO
+	return nil
+}
+
+
+
+
 type ChildrenMappingField struct {
 	BaseMappingField
 	ChildMapping *MappingInfo
@@ -50,6 +138,8 @@ func (cildrenMappingField *ChildrenMappingField) Convert(sourceFieldValue reflec
 	return nil
 }
 
+
+
 type NoneMappingField struct {
 	BaseMappingField
 }
@@ -57,6 +147,8 @@ type NoneMappingField struct {
 func (noneMappingField *NoneMappingField) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
 	panic("never come here")
 }
+
+
 
 type SameTypeMappingField struct {
 	BaseMappingField
@@ -67,6 +159,8 @@ func (sameTypeMappingField *SameTypeMappingField) Convert(sourceFieldValue refle
 	return nil
 }
 
+
+
 type AnyMappingField struct {
 	BaseMappingField
 }
@@ -75,6 +169,8 @@ func (anyMappingField *AnyMappingField) Convert(sourceFieldValue reflect.Value, 
 	destFieldValue.Set(reflect.ValueOf(sourceFieldValue.Interface()))
 	return nil
 }
+
+
 
 type BaseMappingField struct {
 	Type      int

@@ -16,11 +16,11 @@ func TestOneToOneCreateMapper(t *testing.T) {
 	}
 	sourceType := reflect.TypeOf((*TestA)(nil))
 	destType := reflect.TypeOf((*TestB)(nil))
-	err := CreateMapper(sourceType, destType)
+	_, err := CreateMapper(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := ensureMapping(sourceType, destType)
+	mapping, _ := ensureMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,11 +44,11 @@ func TestOneToManyCreateMapper(t *testing.T) {
 	}
 	sourceType := reflect.TypeOf((*TestA)(nil))
 	destType := reflect.TypeOf((*TestB)(nil))
-	err := CreateMapper(sourceType, destType)
+	_, err := CreateMapper(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := ensureMapping(sourceType, destType)
+	mapping, _ := ensureMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -56,13 +56,13 @@ func TestOneToManyCreateMapper(t *testing.T) {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 	for _, mapField := range mapping.MapFileds {
-		if mapField.FromField.Name() == "A" {
-			if mapField.ToField.Path != ".Embed.A" {
+		if mapField.GetFromField().Name() == "A" {
+			if mapField.GetToField().Path != ".Embed.A" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.A", mapping.Key)
 			}
 		}
-		if mapField.FromField.Name() == "B" {
-			if mapField.ToField.Path != ".Embed.B" {
+		if mapField.GetFromField().Name() == "B" {
+			if mapField.GetToField().Path != ".Embed.B" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.B", mapping.Key)
 			}
 		}
@@ -86,11 +86,11 @@ func TestManyToManyCreateMapper(t *testing.T) {
 	}
 	sourceType := reflect.TypeOf((*TestA)(nil))
 	destType := reflect.TypeOf((*TestB)(nil))
-	err := CreateMapper(sourceType, destType)
+	_, err := CreateMapper(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, err := ensureMapping(sourceType, destType)
+	mapping, _ := ensureMapping(sourceType, destType)
 	if err != nil {
 		t.Error(err)
 	}
