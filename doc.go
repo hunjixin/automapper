@@ -17,6 +17,32 @@ struct mapping
 
 The two structures match the name (case sensitive), and then determine the mapping relationship between the two structure corresponding field types. If the type is the same,
 it belongs to SameType, otherwise it will generate the submap recursively.
+
+
+type A struct {
+    N string
+}
+
+type B stuct {
+	N string
+}
+
+type C struct {
+    M string
+	Arr []A
+}
+
+type D struct {
+    M string
+	Arr []B
+}
+
+C=>D mapping relation is below
+
+			| M StructFieldMaping   | => | SamepTypeMapping  |
+C=>D	=>
+			| Arr StructFieldMaping | => |ArrayToArrayMapping| => | A=>B mapping | => | N SamepTypeMapping  |
+
 The library supports the embed type. When traversing the field, the fields that traverse the embed are merged together. If the names are the same, the access path is matched.
 
 	type A struct {
@@ -32,6 +58,7 @@ The library supports the embed type. When traversing the field, the fields that 
 	   A
 	   M string
 	}
+
 
 In this example, the conversion of B->C generates two rules, M-M and [A].M->[A].M., so that the field values can be correctly matched.
 
