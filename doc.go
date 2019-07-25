@@ -39,9 +39,9 @@ type D struct {
 
 C=>D mapping relation is below
 
-			| M StructFieldMaping   | => | SamepTypeMapping  |
-C=>D	=>
-			| Arr StructFieldMaping | => |ArrayToArrayMapping| => | A=>B mapping | => | N SamepTypeMapping  |
+				| M StructFieldMaping   | => | SamepTypeMapping  |
+	C=>D	=>
+				| Arr StructFieldMaping | => |ArrayToArrayMapping| => | A=>B mapping | => | N SamepTypeMapping  |
 
 The library supports the embed type. When traversing the field, the fields that traverse the embed are merged together. If the names are the same, the access path is matched.
 
