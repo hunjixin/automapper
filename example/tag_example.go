@@ -1,4 +1,5 @@
-// +build main4
+// +build main6
+
 package main
 
 import (

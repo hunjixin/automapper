@@ -56,7 +56,7 @@ func TestOneToManyCreateMapper(t *testing.T) {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 	for _, mapField := range mapping.MapFileds {
-		struct2strcutMapField := mapField.(*StructFieldMap)
+		struct2strcutMapField := mapField.(*StructFieldMapping)
 		if struct2strcutMapField.FromField.Name() == "A" {
 			if struct2strcutMapField.ToField.Path != "[Embed][A]" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.A", mapping.Key)
@@ -128,7 +128,6 @@ func TestMap2Map(t *testing.T) {
 	}
 }
 
-
 func TestMap2Struct(t *testing.T) {
 	type Map2StructB struct {
 		B string
@@ -144,6 +143,21 @@ func TestMap2Struct(t *testing.T) {
 	}
 	map2 := structInterface.(Map2StructReceive)
 	if map2.RecevieField.B != "xxxxx" {
+		t.Errorf("value got but not correct")
+	}
+}
+
+func TestStruct2Map(t *testing.T) {
+	type Map2StructB struct {
+		B string
+	}
+
+	structInterface, err := Mapper(Map2StructB{"xxxxx"}, reflect.TypeOf(map[string]interface{}{}))
+	if err != nil {
+		t.Error(err)
+	}
+	map2 := structInterface.(map[string]interface{})
+	if map2["B"] != "xxxxx" {
 		t.Errorf("value got but not correct")
 	}
 }

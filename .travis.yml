@@ -1,0 +1,13 @@
+language: go
+
+go:
+  - 1.12.x
+
+env:
+  - GO111MODULE=on
+
+install:
+  - go get github.com/hraban/lrucache
+  - go get github.com/hraban/lrucache
+script:
+  - go test -v ./...

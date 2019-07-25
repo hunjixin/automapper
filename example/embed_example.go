@@ -1,3 +1,5 @@
+// +build main2
+
 package main
 
 import (
@@ -28,12 +30,7 @@ type ExampleStructB struct {
 }
 
 func main() {
-	//automapper.MustCreateMapper(reflect.TypeOf((*ExampleStructA)(nil)), reflect.TypeOf((*ExampleStructB)(nil)))
-
 	a := ExampleStructA{EnB{}, En{"Sh", "Bj"}, "XXXXXX"}
-	result := automapper.MustMapper(a, reflect.TypeOf((*ExampleStructB)(nil)))
-	fmt.Println(reflect.TypeOf(result).String())
-
 	result2 := automapper.MustMapper(a, reflect.TypeOf(ExampleStructB{}))
 	fmt.Println(result2)
 }
