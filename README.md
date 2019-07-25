@@ -1,4 +1,4 @@
-# automapper [![godoc reference](https://godoc.org/github.com/hunjixin/automapper?status.png)](https://godoc.org/github.com/hunjixin/automapper) 
+# automapper [![godoc reference](https://godoc.org/github.com/hunjixin/automapper?status.png)](https://godoc.org/github.com/hunjixin/automapper)  [![Build Status](https://travis-ci.org/hunjixin/automapper.svg?branch=master)](https://travis-ci.org/hunjixin/automapper)
 Package automapper provides data mapping between different struct
 
 ### Features
