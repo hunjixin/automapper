@@ -24,11 +24,11 @@ type User struct {
 
 func init() {
 	automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil))).
-		Mapping(func(destVal interface{}, sourceVal interface{}) {
-			destVal.(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
+		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+			destVal.Interface().(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
 		}).
-		Mapping(func(destVal interface{}, sourceVal interface{}) {
-			destVal.(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
+		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+		destVal.Interface().(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
 		})
 }
 

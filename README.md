@@ -5,7 +5,7 @@ Package automapper provides data mapping between different struct
 
 1. complex type mapping include embed field,array, slice and map
 2. support tag to redefine field name
-3. func to customize field mapping content
+3. func to customize struct mapping or global simple type conversion
 4. automatic registration when no special requirement
 
 
@@ -111,11 +111,11 @@ Package automapper provides data mapping between different struct
     
     func init() {
         automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil))).
-            Mapping(func(destVal interface{}, sourceVal interface{}) {
-                destVal.(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
+            Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+                destVal.Interface().(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
             }).
-            Mapping(func(destVal interface{}, sourceVal interface{}) {
-                destVal.(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
+            Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+            destVal.Interface().(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
             })
     }
     
@@ -124,7 +124,6 @@ Package automapper provides data mapping between different struct
         result := automapper.MustMapper(user, reflect.TypeOf(UserDto{}))
         fmt.Println(result)
     }
-
 ```
 
 ### Array mapping
@@ -160,6 +159,7 @@ Array and Slice can map to each other
         fmt.Println(result2)
     }
 ```
+
 ### map mapping
 map -> map
 map[string]interface{} -> struct
@@ -212,5 +212,54 @@ struct -> map[string]interface{}
         //struct => map
         newVal = automapper.MustMapper(&User{"Hellen", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)}, reflect.TypeOf(map[string]interface{}{}))
         fmt.Println(newVal)
+    }
+```
+
+### Define global types conversion and than verwrite in complex type mappingo
+```go
+    package main
+    
+    import (
+        "fmt"
+        "github.com/hunjixin/automapper"
+        "reflect"
+        "strconv"
+        "time"
+    )
+    
+    func main(){
+    	//global define
+        automapper.MustCreateMapper(reflect.TypeOf(time.Time{}), reflect.TypeOf("")).
+            Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+                str := sourceVal.(time.Time).String()
+                destVal.Elem().SetString(str)
+            })
+        automapper.MustCreateMapper(reflect.TypeOf(0), reflect.TypeOf("")).
+            Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+                intVal := sourceVal.(int)
+                destVal.Elem().SetString(strconv.Itoa(intVal))
+            })
+        type A struct {
+            M time.Time
+            N int
+        }
+    
+        type B struct {
+            M string
+            N string
+        }
+        //use global conversion
+        str := automapper.MustMapper(A{time.Now(),123}, reflect.TypeOf(B{}))
+        fmt.Println(str)
+    
+        //override
+        mapping := automapper.EnsureMapping(reflect.TypeOf(A{}), reflect.TypeOf(B{}))
+        mapping.Mapping(func(destVal reflect.Value, sourceVal interface{}) {
+            str := sourceVal.(A).M.String()
+            destVal.Interface().(*B).M = "北京时间："+str
+            destVal.Interface().(*B).N = "到达次数："+ strconv.Itoa(sourceVal.(A).N)
+        })
+        str = automapper.MustMapper(A{time.Now(),456}, reflect.TypeOf(B{}))
+        fmt.Println(str)
     }
 ```

@@ -40,7 +40,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		SourceType: sourceType,
 		DestType:   destType,
 		MapFileds:  []IStructConverter{},
-		MapFunc:    []func(interface{}, interface{}){},
+		MapFunc:    []func(reflect.Value, interface{}){},
 	}
 
 	mappingInfosMap, ok := mapperStore[sourceType]
@@ -209,6 +209,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	}
 End:
 	//add simply type convert mapping such as int to string
+
 	return newMappingInfo, nil
 }
 

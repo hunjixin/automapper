@@ -27,7 +27,7 @@ type MappingInfo struct {
 	ToField    []*structField
 
 	MapFileds  []IStructConverter
-	MapFunc    []func(interface{}, interface{})
+	MapFunc    []func(reflect.Value, interface{})
 }
 
 func (mappingInfo *MappingInfo) AddField(field IStructConverter) {
@@ -35,7 +35,9 @@ func (mappingInfo *MappingInfo) AddField(field IStructConverter) {
 }
 
 // Mapping add customize field mapping
-func (mappingInfo *MappingInfo) Mapping(mapFunc func(interface{}, interface{})) *MappingInfo {
+// arg1 is a ptr to dest value
+// arg2 is the origin value (may be ptr or not)
+func (mappingInfo *MappingInfo) Mapping(mapFunc func(reflect.Value, interface{})) *MappingInfo {
 	mappingInfo.MapFunc = append(mappingInfo.MapFunc, mapFunc)
 	return mappingInfo
 }
@@ -91,7 +93,7 @@ func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error
 	}
 
 	for _, mapFunc := range mappingInfo.MapFunc {
-		mapFunc(destValue.Addr().Interface(), sourceValue.Addr().Interface())
+		mapFunc(destValue.Addr(), originSourceValue.Interface())
 	}
 	return destValue, nil
 }
