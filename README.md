@@ -87,43 +87,43 @@ Package automapper provides data mapping between different struct
 ### func mapping
 
 ```go
-    package main
-    
-    import (
+     package main
+     
+     import (
         "fmt"
         "github.com/hunjixin/automapper"
         "reflect"
         "time"
-    )
-    
-    type UserDto struct {
+     )
+     
+     type UserDto struct {
         Name string
         Addr string
         Age  int
-    }
-    
-    type User struct {
+     }
+     
+     type User struct {
         Name  string
         Nick  string
         Addr  string
         Birth time.Time
-    }
-    
-    func init() {
-        automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil))).
+     }
+     
+     func init() {
+        automapper.MustCreateMapper((*User)(nil), (*UserDto)(nil)).
             Mapping(func(destVal reflect.Value, sourceVal interface{}) {
                 destVal.Interface().(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
             }).
             Mapping(func(destVal reflect.Value, sourceVal interface{}) {
             destVal.Interface().(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
             })
-    }
-    
-    func main() {
+     }
+     
+     func main() {
         user := &User{"NAME", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)}
         result := automapper.MustMapper(user, reflect.TypeOf(UserDto{}))
         fmt.Println(result)
-    }
+     }
 ```
 
 ### Array mapping
@@ -228,13 +228,12 @@ struct -> map[string]interface{}
     )
     
     func main(){
-    	//global define
-        automapper.MustCreateMapper(reflect.TypeOf(time.Time{}), reflect.TypeOf("")).
+        automapper.MustCreateMapper(time.Time{}, "").
             Mapping(func(destVal reflect.Value, sourceVal interface{}) {
                 str := sourceVal.(time.Time).String()
                 destVal.Elem().SetString(str)
             })
-        automapper.MustCreateMapper(reflect.TypeOf(0), reflect.TypeOf("")).
+        automapper.MustCreateMapper(0, "").
             Mapping(func(destVal reflect.Value, sourceVal interface{}) {
                 intVal := sourceVal.(int)
                 destVal.Elem().SetString(strconv.Itoa(intVal))
@@ -248,12 +247,11 @@ struct -> map[string]interface{}
             M string
             N string
         }
-        //use global conversion
+    
         str := automapper.MustMapper(A{time.Now(),123}, reflect.TypeOf(B{}))
         fmt.Println(str)
     
-        //override
-        mapping := automapper.EnsureMapping(reflect.TypeOf(A{}), reflect.TypeOf(B{}))
+        mapping := automapper.EnsureMapping(A{}, B{})
         mapping.Mapping(func(destVal reflect.Value, sourceVal interface{}) {
             str := sourceVal.(A).M.String()
             destVal.Interface().(*B).M = "北京时间："+str
@@ -262,4 +260,5 @@ struct -> map[string]interface{}
         str = automapper.MustMapper(A{time.Now(),456}, reflect.TypeOf(B{}))
         fmt.Println(str)
     }
+
 ```

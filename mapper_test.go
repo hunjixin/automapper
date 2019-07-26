@@ -14,13 +14,11 @@ func TestOneToOneCreateMapper(t *testing.T) {
 		B string
 		A string
 	}
-	sourceType := reflect.TypeOf((*TestAA)(nil))
-	destType := reflect.TypeOf((*TestBB)(nil))
-	_, err := CreateMapper(sourceType, destType)
+	_, err := CreateMapper((*TestAA)(nil), (*TestBB)(nil))
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, _ := ensureMapping(sourceType, destType)
+	mapping := EnsureMapping((*TestAA)(nil), (*TestBB)(nil))
 	if err != nil {
 		t.Error(err)
 	}
@@ -42,13 +40,11 @@ func TestOneToManyCreateMapper(t *testing.T) {
 		B string
 		A string
 	}
-	sourceType := reflect.TypeOf((*TestAAA)(nil))
-	destType := reflect.TypeOf((*TestBBB)(nil))
-	_, err := CreateMapper(sourceType, destType)
+	_, err := CreateMapper((*TestAAA)(nil), (*TestBBB)(nil))
 	if err != nil {
 		t.Error(err)
 	}
-	mapping, _ := ensureMapping(sourceType, destType)
+	mapping := EnsureMapping((*TestAAA)(nil), (*TestBBB)(nil))
 	if err != nil {
 		t.Error(err)
 	}

@@ -23,7 +23,7 @@ type User struct {
 }
 
 func init() {
-	automapper.MustCreateMapper(reflect.TypeOf((*User)(nil)), reflect.TypeOf((*UserDto)(nil))).
+	automapper.MustCreateMapper((*User)(nil), (*UserDto)(nil)).
 		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
 			destVal.Interface().(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
 		}).

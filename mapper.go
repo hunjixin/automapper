@@ -13,7 +13,7 @@ var (
 )
 
 // MustCreateMapper similar to CreateMapper but ignore err
-func MustCreateMapper(sourceType, destType reflect.Type) *MappingInfo {
+func MustCreateMapper(sourceType, destType interface{}) *MappingInfo {
 	mappingInfo, _ := CreateMapper(sourceType, destType)
 	return mappingInfo
 }
@@ -24,12 +24,12 @@ func MustCreateMapper(sourceType, destType reflect.Type) *MappingInfo {
 // if name is 1 to 1 :use name to match
 // if name is 1 to many or many to 1: use key path to match
 // if name is many to many :  use key path to match. may exist match more than one
-func CreateMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
+func CreateMapper(sourceType, destType interface{}) (*MappingInfo, error) {
 	lock.Lock()
 	defer func() {
 		lock.Unlock()
 	}()
-	return createMapper(sourceType, destType)
+	return createMapper(reflect.TypeOf(sourceType), reflect.TypeOf(destType))
 }
 
 func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
@@ -291,12 +291,12 @@ func indirectType(t reflect.Type) reflect.Type {
 }
 
 // EnsureMapping get mapping relationship by source and dest type if not exist auto create
-func EnsureMapping(sourceType, destType reflect.Type) *MappingInfo {
+func EnsureMapping(sourceType, destType interface{}) *MappingInfo {
 	lock.Lock()
 	defer func() {
 		lock.Unlock()
 	}()
-	mappingInfo, _ := ensureMapping(sourceType, destType)
+	mappingInfo, _ := ensureMapping(reflect.TypeOf(sourceType), reflect.TypeOf(destType))
 	return mappingInfo
 }
 

@@ -11,12 +11,12 @@ import (
 )
 
 func main(){
-	automapper.MustCreateMapper(reflect.TypeOf(time.Time{}), reflect.TypeOf("")).
+	automapper.MustCreateMapper(time.Time{}, "").
 		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
 			str := sourceVal.(time.Time).String()
 			destVal.Elem().SetString(str)
 		})
-	automapper.MustCreateMapper(reflect.TypeOf(0), reflect.TypeOf("")).
+	automapper.MustCreateMapper(0, "").
 		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
 			intVal := sourceVal.(int)
 			destVal.Elem().SetString(strconv.Itoa(intVal))
@@ -34,7 +34,7 @@ func main(){
 	str := automapper.MustMapper(A{time.Now(),123}, reflect.TypeOf(B{}))
 	fmt.Println(str)
 
-	mapping := automapper.EnsureMapping(reflect.TypeOf(A{}), reflect.TypeOf(B{}))
+	mapping := automapper.EnsureMapping(A{}, B{})
 	mapping.Mapping(func(destVal reflect.Value, sourceVal interface{}) {
 		str := sourceVal.(A).M.String()
 		destVal.Interface().(*B).M = "北京时间："+str
