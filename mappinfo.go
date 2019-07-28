@@ -1,9 +1,12 @@
 package automapper
 
-import "reflect"
+import (
+	"reflect"
+)
 
 const (
 	None = iota
+	Ptr
 	AnyType
 	SameType
 	MapToMap
@@ -43,21 +46,24 @@ func (mappingInfo *MappingInfo) Mapping(mapFunc func(reflect.Value, interface{})
 }
 
 // Mapper get a instance by given source value and dest type
-func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error) {
-	originSourceValue := reflect.ValueOf(source)
-	sourceValue := reflect.Indirect(originSourceValue)
+func (mappingInfo *MappingInfo) mapper(source reflect.Value) (reflect.Value, error) {
 	destValue := reflect.ValueOf(nil)
-	if isNil(originSourceValue) {
+	if isNil(source) {
 		return destValue, nil
 	}
-	destValue = reflect.New(indirectType(mappingInfo.DestType)).Elem()
+	destValue = reflect.New(mappingInfo.DestType).Elem()
 	switch mappingInfo.Type {
 	case None:
 	case AnyType:
 		//mappingInfo.
 		//TODO
+	case Ptr:
+		err := mappingInfo.MapFileds[0].Convert(source, destValue)
+		if err != nil {
+			return reflect.ValueOf(nil), err
+		}
 	case SameType:
-		err := mappingInfo.MapFileds[0].Convert(sourceValue, destValue)
+		err := mappingInfo.MapFileds[0].Convert(source, destValue)
 		if err != nil {
 			return reflect.ValueOf(nil), err
 		}
@@ -74,18 +80,18 @@ func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error
 	case StructToMap:
 		fallthrough
 	case MapToStruct:
-		err := mappingInfo.MapFileds[0].Convert(sourceValue, destValue)
+		err := mappingInfo.MapFileds[0].Convert(source, destValue)
 		if err != nil {
 			return reflect.ValueOf(nil), err
 		}
 	case StructToStrucgt:
 		destFieldValues := deepValue(destValue)
-		sourceFields := deepValue(sourceValue)
+		sourceValueFields := deepValue(source)
 		for _, mappingField := range mappingInfo.MapFileds {
 			structFieldMapping := mappingField.(*StructFieldMapping)
-			sourceFieldValue := sourceFields[structFieldMapping.FromField.FiledIndex]
+			sourceValueField := sourceValueFields[structFieldMapping.FromField.FiledIndex]
 			destFieldValue := destFieldValues[structFieldMapping.ToField.FiledIndex]
-			err := structFieldMapping.Convert(sourceFieldValue, destFieldValue)
+			err := structFieldMapping.Convert(sourceValueField, destFieldValue)
 			if err != nil {
 				return reflect.ValueOf(nil), err
 			}
@@ -93,7 +99,7 @@ func (mappingInfo *MappingInfo) mapper(source interface{}) (reflect.Value, error
 	}
 
 	for _, mapFunc := range mappingInfo.MapFunc {
-		mapFunc(destValue.Addr(), originSourceValue.Interface())
+		mapFunc(destValue.Addr(), source.Interface())
 	}
 	return destValue, nil
 }

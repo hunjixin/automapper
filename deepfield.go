@@ -99,7 +99,6 @@ func internalDeepFields(ift reflect.Type, index *intVal, key string) []*structFi
 }
 
 func deepValue(ifv reflect.Value) []reflect.Value {
-	ifv = reflect.Indirect(ifv)
 	fields := make([]reflect.Value, 0)
 	for i := 0; i < ifv.Type().NumField(); i++ {
 		v := ifv.Field(i)

@@ -9,6 +9,27 @@ type IStructConverter interface {
 	Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error
 }
 
+type PtrMapping struct {
+	ChildMapping  *MappingInfo
+	IsSourcePtr   bool
+}
+
+func (ptrMapping *PtrMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	var childVal reflect.Value
+	var err error
+	if ptrMapping.IsSourcePtr {
+		childVal, err = ptrMapping.ChildMapping.mapper(sourceFieldValue.Elem())
+		destFieldValue.Set(childVal)
+	}else{
+		childVal, err = ptrMapping.ChildMapping.mapper(sourceFieldValue)
+		destFieldValue.Set(childVal.Addr())
+	}
+	if err != nil {
+		return err
+	}
+	//setValue(sourceFieldValue, childVal)
+	return nil
+}
 // MapToMapMapping map to map
 type MapToMapMapping struct {
 	SoureValueType reflect.Type
@@ -21,22 +42,20 @@ func (mapToMapMapping *MapToMapMapping) Convert(sourceFieldValue reflect.Value, 
 	sourceMapIter := sourceFieldValue.MapRange()
 	destFieldValue.Set(reflect.MakeMap(mapToMapMapping.DestValueType))
 	for sourceMapIter.Next() {
-		val, err := mappingInfo.mapper(sourceMapIter.Value().Interface())
+		val, err := mappingInfo.mapper(sourceMapIter.Value())
 		if err != nil {
 			return err
 		}
 		if val.IsValid() {
-			if mapToMapMapping.DestValueType.Elem().Kind() == reflect.Ptr {
-				if val.CanAddr() {
-					destFieldValue.SetMapIndex(sourceMapIter.Key(), val.Addr())
-				}else{
-					copyVal := reflect.New(val.Type()).Elem()
-					copyVal.Set(val)
-					destFieldValue.SetMapIndex(sourceMapIter.Key(), copyVal.Addr())
-				}
-			} else {
-				destFieldValue.SetMapIndex(sourceMapIter.Key(), val)
-			}
+			destFieldValue.SetMapIndex(sourceMapIter.Key(), val)
+
+			/*if val.CanAddr() {
+				destFieldValue.SetMapIndex(sourceMapIter.Key(), val.Addr())
+			}else{
+				copyVal := reflect.New(val.Type()).Elem()
+				copyVal.Set(val)
+				destFieldValue.SetMapIndex(sourceMapIter.Key(), copyVal.Addr())
+			}*/
 		}
 	}
 	return nil
@@ -58,7 +77,12 @@ func (mapToStructMapping *MapToStructMapping) Convert(sourceFieldValue reflect.V
 	for mapIter.Next() {
 		for index, valueField := range values {
 			if mapToStructMapping.ToFields[index].Name() == mapIter.Key().Interface().(string) {
-				setValue(valueField, mapIter.Value().Elem())
+				childMap, _ := ensureMapping(mapIter.Value().Elem().Type(), valueField.Type())
+				childValue, err := childMap.mapper(mapIter.Value().Elem())
+				if err != nil {
+					return err
+				}
+				setValue(valueField, childValue)
 			}
 		}
 	}
@@ -70,17 +94,15 @@ func setValue(destValue, sourceValue reflect.Value){
 	if !sourceValue.IsValid() {
 		return
 	}
-	if destValue.Kind() == reflect.Ptr {
-		if sourceValue.CanAddr() {
-			destValue.Set(sourceValue.Addr())
-		}else{
-			val := reflect.New(sourceValue.Type()).Elem()
-			val.Set(sourceValue)
-			destValue.Set(val.Addr())
-		}
-	} else {
+	destValue.Set(sourceValue)
+
+	/*if sourceValue.CanAddr() {
 		destValue.Set(sourceValue)
-	}
+	}else{
+		val := reflect.New(sourceValue.Type()).Elem()
+		val.Set(sourceValue)
+		destValue.Set(val.Addr())
+	}*/
 }
 
 // StructToMapMapping struct to map
@@ -116,7 +138,7 @@ type Array2ArrayMapping struct {
 //Convert clone array element one by one, is ele type is different recursively element value to the new array element value
 func (array2ArrayMapping *Array2ArrayMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
 	for i := 0; i < array2ArrayMapping.Length; i++ {
-		childVal, err := mapper(sourceFieldValue.Index(i).Interface(), array2ArrayMapping.ToFieldType)
+		childVal, err := array2ArrayMapping.ChildMapping.mapper(sourceFieldValue.Index(i))
 		if err != nil {
 			return err
 		}
@@ -203,7 +225,7 @@ type SameTypeMapping struct {
 
 //Convert set directly
 func (sameTypeMapping *SameTypeMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	destFieldValue.Set(reflect.ValueOf(sourceFieldValue.Interface()))
+	destFieldValue.Set(sourceFieldValue)
 	return nil
 }
 
@@ -226,7 +248,7 @@ type StructFieldMapping struct {
 
 // Convert invoke field mappig and use reslut as field value
 func (structFieldMap *StructFieldMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
-	val, err := structFieldMap.ChildMapping.mapper(sourceFieldValue.Interface())
+	val, err := structFieldMap.ChildMapping.mapper(sourceFieldValue)
 	if err != nil {
 		return err
 	}

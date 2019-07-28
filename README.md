@@ -3,10 +3,11 @@ Package automapper provides data mapping between different struct
 
 ### Features
 
-1. complex type mapping include embed field,array, slice and map
-2. support tag to redefine field name
-3. func to customize struct mapping or global simple type conversion
-4. automatic registration when no special requirement
+1. Complex type mapping include Embed Field, Array, Slice Map and Multiple pointers
+2. Support tag to redefine field name
+3. Func to customize struct mapping or global simple type conversion
+4. Automatic registration when no special requirement
+5. Easy-to-use API
 
 
 ## Import

@@ -33,8 +33,6 @@ func CreateMapper(sourceType, destType interface{}) (*MappingInfo, error) {
 }
 
 func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
-	sourceType = indirectType(sourceType)
-	destType = indirectType(destType)
 	newMappingInfo := &MappingInfo{
 		Key:        sourceType.String() + "=>" + destType.String(),
 		SourceType: sourceType,
@@ -53,6 +51,25 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		}
 	} else {
 		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
+	}
+	//PTR
+	if sourceType.Kind() == reflect.Ptr {
+		newMappingInfo.Type = Ptr
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType)
+		newMappingInfo.AddField(&PtrMapping{
+			childMapping,
+			true,
+		})
+		goto End
+	}
+	if destType.Kind() == reflect.Ptr {
+		newMappingInfo.Type = Ptr
+		childMapping, _ := ensureMapping(sourceType, destType.Elem())
+		newMappingInfo.AddField(&PtrMapping{
+			childMapping,
+			false,
+		})
+		goto End
 	}
 	//map => map
 	if  destType.Kind() == reflect.Map && sourceType.Kind() == reflect.Map {
@@ -236,11 +253,7 @@ func MustMapper(source interface{}, destType reflect.Type) interface{} {
 		lock.Unlock()
 	}()
 	reflectValue, _ := mapper(source, destType)
-	if destType.Kind() == reflect.Ptr {
-		return reflectValue.Addr().Interface()
-	} else {
-		return reflectValue.Interface()
-	}
+	return reflectValue.Interface()
 }
 
 // mapper convert source to destType
@@ -253,17 +266,13 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if destType.Kind() == reflect.Ptr {
-		return reflectValue.Addr().Interface(), nil
-	} else {
-		return reflectValue.Interface(), nil
-	}
+	return reflectValue.Interface(), err
 }
 
 
 func mapper(source interface{}, destType reflect.Type) (reflect.Value, error) {
 	mapping, _ := ensureMapping(reflect.TypeOf(source), destType)
-	return mapping.mapper(source)
+	return mapping.mapper(reflect.ValueOf(source))
 }
 
 func isNil(val reflect.Value) bool {
@@ -283,13 +292,6 @@ func isNil(val reflect.Value) bool {
 	return false
 }
 
-func indirectType(t reflect.Type) reflect.Type {
-	if t.Kind() == reflect.Ptr {
-		return t.Elem()
-	}
-	return t
-}
-
 // EnsureMapping get mapping relationship by source and dest type if not exist auto create
 func EnsureMapping(sourceType, destType interface{}) *MappingInfo {
 	lock.Lock()
@@ -302,12 +304,6 @@ func EnsureMapping(sourceType, destType interface{}) *MappingInfo {
 
 // ensureMapping get mapping by source and dest type if not exist auto create
 func ensureMapping(sourceType, destType reflect.Type) (*MappingInfo, bool) {
-	if sourceType.Kind() == reflect.Ptr {
-		sourceType = sourceType.Elem()
-	}
-	if destType.Kind() == reflect.Ptr {
-		destType = destType.Elem()
-	}
 	mappingInfosMaps, ok := mapperStore[sourceType]
 	if !ok {
 		mapping, _ := createMapper(sourceType, destType)

@@ -22,7 +22,8 @@ func TestOneToOneCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(mapping.MapFileds) != 2 {
+	structMappingInfo := mapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping
+	if len(structMappingInfo.MapFileds) != 2 {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 }
@@ -48,11 +49,12 @@ func TestOneToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(mapping.MapFileds) != 2 {
+	structMappingInfo := mapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping
+	if len(structMappingInfo.MapFileds) != 2 {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 	for _, mapField := range mapping.MapFileds {
-		struct2strcutMapField := mapField.(*StructFieldMapping)
+		struct2strcutMapField := mapField.(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*StructFieldMapping)
 		if struct2strcutMapField.FromField.Name() == "A" {
 			if struct2strcutMapField.ToField.Path != "[Embed][A]" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.A", mapping.Key)
@@ -91,7 +93,8 @@ func TestManyToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(mapping.MapFileds) != 4 {
+	structMappingInfo := mapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping
+	if len(structMappingInfo.MapFileds) != 4 {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 }

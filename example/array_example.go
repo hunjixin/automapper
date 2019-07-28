@@ -23,8 +23,7 @@ type User struct {
 }
 
 func main(){
-	automapper.CreateMapper(reflect.TypeOf(User(nil)), reflect.TypeOf(UserDto(nil)))
-	automapper.MustMapper(User{"Hellen", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)},  reflect.TypeOf(UserDto(nil)))
+	automapper.MustMapper(User{"Hellen", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)},  reflect.TypeOf(UserDto{}))
 	users := [3]*User{}
 	users[0] = &User{"Hellen", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)}
 	users[2] = &User{"Jack", "neo", "W·S", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)}

@@ -205,10 +205,10 @@ func TestPtr_ArrayToArrayMappingField(t *testing.T) {
 	arr1 := [5]*SimpleB{}
 	arr1[0] = &SimpleB{"xxxx"}
 	arr1[4]= &SimpleB{"xxxx"}
-	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(SimpleB{}), reflect.TypeOf(SimpleB{}))
+	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(&SimpleB{}), reflect.TypeOf(&SimpleB{}))
 	arrMap := &Array2ArrayMapping{
-		reflect.TypeOf(SimpleB{}),
-		reflect.TypeOf(SimpleB{}),
+		reflect.TypeOf(&SimpleB{}),
+		reflect.TypeOf(&SimpleB{}),
 		5,
 		sameTypeMapping,
 	}
@@ -228,12 +228,13 @@ func TestSimple_SliceToArrayMappingField(t *testing.T) {
 	arr1 := make([]SimpleB, 5)
 	arr1[0] = SimpleB{"xxxxxx"}
 	arr1[4] = SimpleB{"xxxxxx"}
-	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(SimpleB{}), reflect.TypeOf(SimpleB{}))
+
+	ptrMapping, _ := ensureMapping(reflect.TypeOf(SimpleB{}), reflect.TypeOf(SimpleB{}))
 	arrMap := &Slice2ArrayMapping{
 		reflect.TypeOf(SimpleB{}),
 		reflect.TypeOf(SimpleB{}),
 		5,
-		sameTypeMapping,
+		ptrMapping,
 	}
 	destValue := reflect.New(reflect.TypeOf([5]SimpleB{})).Elem()
 	err := arrMap.Convert(reflect.ValueOf(arr1), destValue)
@@ -250,7 +251,7 @@ func TestPtrSliceToArrayMappingField(t *testing.T) {
 	arr1 := make([]*SimpleB, 5)
 	arr1[0] = &SimpleB{"xxxxxx"}
 	arr1[4] = &SimpleB{"xxxxxx"}
-	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(SimpleB{}), reflect.TypeOf(SimpleB{}))
+	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(&SimpleB{}), reflect.TypeOf(&SimpleB{}))
 	arrMap := &Slice2ArrayMapping{
 		reflect.TypeOf(&SimpleB{}),
 		reflect.TypeOf(SimpleB{}),
@@ -293,7 +294,7 @@ func TestPtr_SliceToSliceMappingField(t *testing.T) {
 	arr1 := make([]*SimpleB, 5)
 	arr1[0] = &SimpleB{"xxxxxx"}
 	arr1[4] = &SimpleB{"xxxxxx"}
-	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(&SimpleB{}), reflect.TypeOf(SimpleB{}))
+	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(&SimpleB{}), reflect.TypeOf(&SimpleB{}))
 	arrMap := &Slice2SliceMapping{
 		reflect.TypeOf(&SimpleB{}),
 		reflect.TypeOf(SimpleB{}),
@@ -336,7 +337,7 @@ func TestPtr_ArrayToSliceMappingField(t *testing.T) {
 	arr1 := [5]*SimpleB{}
 	arr1[0] = &SimpleB{"xxxx"}
 	arr1[4] = &SimpleB{"xxxx"}
-	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(SimpleB{}), reflect.TypeOf(SimpleB{}))
+	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(&SimpleB{}), reflect.TypeOf(&SimpleB{}))
 	arrMap := &Array2SliceMapping{
 		reflect.TypeOf(&SimpleB{}),
 		reflect.TypeOf(SimpleB{}),
