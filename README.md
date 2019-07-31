@@ -3,10 +3,10 @@ Package automapper provides data mapping between different struct
 
 ### Features
 
-1. Complex type mapping include Embed Field, Array, Slice Map and Multiple pointers
+1. Complex type mapping include Struct, Embed Field, Array, Slice, Map and even Multiple pointers
 2. Support tag to redefine field name
 3. Func to customize struct mapping or global simple type conversion
-4. Automatic registration when no special requirement
+4. Automatic registration 
 5. Easy-to-use API
 
 
@@ -216,7 +216,7 @@ struct -> map[string]interface{}
     }
 ```
 
-### Define global types conversion and than verwrite in complex type mappingo
+### Define global types conversion and than verwrite in complex type mapping
 ```go
     package main
     

@@ -84,5 +84,11 @@ sometimes we need a more free mapping scheme, such as combining two fields toget
 	Mapping(func(destVal interface{}, sourceVal interface{}) {
 		destVal.(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
 	})
+
+Multiple pointers
+
+support any depth pointers mapping 
+
+	**A->**B => PtrMapping *A->**B => PtrMapping A->**B => PtrMapping A->*B => StructMapping A->*B => each fieldMapping
 */
 package automapper
