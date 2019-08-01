@@ -216,7 +216,7 @@ struct -> map[string]interface{}
     }
 ```
 
-### Define global types conversion and than verwrite in complex type mapping
+### Define global types conversion and than overwrite in complex type mapping
 ```go
     package main
     
