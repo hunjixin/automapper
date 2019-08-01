@@ -5,9 +5,10 @@ package main
 import (
 	"fmt"
 	"github.com/hunjixin/automapper"
-	"time"
 	"reflect"
+	"time"
 )
+
 type UserDto struct {
 	Name string
 	Addr string
@@ -21,11 +22,11 @@ type User struct {
 	Birth time.Time
 }
 
-func main(){
+func main() {
 	//map => map
 	map1 := map[string]*User{
-		"Hellen":&User{"Hellen", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)},
-		"Jack":&User{"Jack", "neo", "W·S", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)},
+		"Hellen": &User{"Hellen", "NICK", "B·J", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)},
+		"Jack":   &User{"Jack", "neo", "W·S", time.Date(1992, 10, 3, 1, 0, 0, 0, time.UTC)},
 	}
 
 	newVal := automapper.MustMapper(map1, reflect.TypeOf(map[string]*UserDto{}))

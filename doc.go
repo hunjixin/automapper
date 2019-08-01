@@ -87,7 +87,7 @@ sometimes we need a more free mapping scheme, such as combining two fields toget
 
 Multiple pointers
 
-support any depth pointers mapping 
+support any depth pointers mapping
 
 	**A->**B => PtrMapping *A->**B => PtrMapping A->**B => PtrMapping A->*B => StructMapping A->*B => each fieldMapping
 */

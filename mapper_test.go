@@ -101,12 +101,12 @@ func TestManyToManyCreateMapper(t *testing.T) {
 
 func TestMap2Map(t *testing.T) {
 	type Map2MapA struct {
-		 B string
+		B string
 	}
 	type Map2MapB struct {
 		B string
 	}
-	testData := []string {"A","VV","FR"}
+	testData := []string{"A", "VV", "FR"}
 	map1 := map[string]Map2MapA{}
 	for _, val := range testData {
 		map1[val] = Map2MapA{val}
@@ -135,7 +135,7 @@ func TestMap2Struct(t *testing.T) {
 	type Map2StructReceive struct {
 		RecevieField *Map2StructB
 	}
-	map1 := map[string]interface{}{"RecevieField":Map2StructB{"xxxxx"}}
+	map1 := map[string]interface{}{"RecevieField": Map2StructB{"xxxxx"}}
 	structInterface, err := Mapper(map1, reflect.TypeOf(Map2StructReceive{}))
 	if err != nil {
 		t.Error(err)

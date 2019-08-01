@@ -76,7 +76,6 @@ func TestPtr_MapToMapStructMappingField(t *testing.T) {
 	}
 }
 
-
 func TestSimple_StructToMapMappingField(t *testing.T) {
 	type B struct {
 		Aa string
@@ -130,8 +129,6 @@ func TestPtr_StructToMapMappingField(t *testing.T) {
 		t.Error("the converted value is not equal to the previous value")
 	}
 }
-
-
 
 func TestSimple_MapToStructMappingField(t *testing.T) {
 	toFields := deepFields(reflect.TypeOf(ComplexA{}))
@@ -204,7 +201,7 @@ func TestSimple_ArrayToArrayMappingField(t *testing.T) {
 func TestPtr_ArrayToArrayMappingField(t *testing.T) {
 	arr1 := [5]*SimpleB{}
 	arr1[0] = &SimpleB{"xxxx"}
-	arr1[4]= &SimpleB{"xxxx"}
+	arr1[4] = &SimpleB{"xxxx"}
 	sameTypeMapping, _ := ensureMapping(reflect.TypeOf(&SimpleB{}), reflect.TypeOf(&SimpleB{}))
 	arrMap := &Array2ArrayMapping{
 		reflect.TypeOf(&SimpleB{}),
@@ -222,7 +219,6 @@ func TestPtr_ArrayToArrayMappingField(t *testing.T) {
 		t.Error("the converted value is not equal to the previous value")
 	}
 }
-
 
 func TestSimple_SliceToArrayMappingField(t *testing.T) {
 	arr1 := make([]SimpleB, 5)

@@ -7,13 +7,14 @@ import (
 )
 
 type A struct {
-	 B string
+	B string
 }
 
 type C struct {
 	B string
 }
-func main(){
+
+func main() {
 	a1 := &A{"Multiple pointers"}
 	a2 := &a1
 	a3 := &a2
@@ -24,5 +25,5 @@ func main(){
 	fmt.Println(b3)
 	newVal := automapper.MustMapper(a3, reflect.TypeOf(b3))
 
-	fmt.Println(newVal.(**C))
+	fmt.Println(**(newVal.(**C)))
 }

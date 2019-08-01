@@ -10,8 +10,8 @@ type IStructConverter interface {
 }
 
 type PtrMapping struct {
-	ChildMapping  *MappingInfo
-	IsSourcePtr   bool
+	ChildMapping *MappingInfo
+	IsSourcePtr  bool
 }
 
 func (ptrMapping *PtrMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
@@ -20,7 +20,7 @@ func (ptrMapping *PtrMapping) Convert(sourceFieldValue reflect.Value, destFieldV
 	if ptrMapping.IsSourcePtr {
 		childVal, err = ptrMapping.ChildMapping.mapper(sourceFieldValue.Elem())
 		destFieldValue.Set(childVal)
-	}else{
+	} else {
 		childVal, err = ptrMapping.ChildMapping.mapper(sourceFieldValue)
 		destFieldValue.Set(childVal.Addr())
 	}
@@ -30,6 +30,7 @@ func (ptrMapping *PtrMapping) Convert(sourceFieldValue reflect.Value, destFieldV
 	//setValue(sourceFieldValue, childVal)
 	return nil
 }
+
 // MapToMapMapping map to map
 type MapToMapMapping struct {
 	SoureValueType reflect.Type
@@ -89,8 +90,7 @@ func (mapToStructMapping *MapToStructMapping) Convert(sourceFieldValue reflect.V
 	return nil
 }
 
-
-func setValue(destValue, sourceValue reflect.Value){
+func setValue(destValue, sourceValue reflect.Value) {
 	if !sourceValue.IsValid() {
 		return
 	}

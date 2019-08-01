@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func main(){
+func main() {
 	automapper.MustCreateMapper(time.Time{}, "").
 		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
 			str := sourceVal.(time.Time).String()
@@ -31,15 +31,15 @@ func main(){
 		N string
 	}
 
-	str := automapper.MustMapper(A{time.Now(),123}, reflect.TypeOf(B{}))
+	str := automapper.MustMapper(A{time.Now(), 123}, reflect.TypeOf(B{}))
 	fmt.Println(str)
 
 	mapping := automapper.EnsureMapping(A{}, B{})
 	mapping.Mapping(func(destVal reflect.Value, sourceVal interface{}) {
 		str := sourceVal.(A).M.String()
-		destVal.Interface().(*B).M = "北京时间："+str
-		destVal.Interface().(*B).N = "到达次数："+ strconv.Itoa(sourceVal.(A).N)
+		destVal.Interface().(*B).M = "北京时间：" + str
+		destVal.Interface().(*B).N = "到达次数：" + strconv.Itoa(sourceVal.(A).N)
 	})
-	str = automapper.MustMapper(A{time.Now(),456}, reflect.TypeOf(B{}))
+	str = automapper.MustMapper(A{time.Now(), 456}, reflect.TypeOf(B{}))
 	fmt.Println(str)
 }

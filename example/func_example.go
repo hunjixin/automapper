@@ -28,7 +28,7 @@ func init() {
 			destVal.Interface().(*UserDto).Name = sourceVal.(*User).Name + "|" + sourceVal.(*User).Nick
 		}).
 		Mapping(func(destVal reflect.Value, sourceVal interface{}) {
-		destVal.Interface().(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
+			destVal.Interface().(*UserDto).Age = time.Now().Year() - sourceVal.(*User).Birth.Year()
 		})
 }
 

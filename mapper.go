@@ -72,7 +72,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		goto End
 	}
 	//map => map
-	if  destType.Kind() == reflect.Map && sourceType.Kind() == reflect.Map {
+	if destType.Kind() == reflect.Map && sourceType.Kind() == reflect.Map {
 		newMappingInfo.Type = MapToMap
 		newMappingInfo.AddField(&MapToMapMapping{
 			sourceType,
@@ -230,7 +230,6 @@ End:
 	return newMappingInfo, nil
 }
 
-
 // groupFiled group field by name
 func groupFiled(fileds []*structField) map[string][]*structField {
 	groupFileds := map[string][]*structField{}
@@ -268,7 +267,6 @@ func Mapper(source interface{}, destType reflect.Type) (interface{}, error) {
 	}
 	return reflectValue.Interface(), err
 }
-
 
 func mapper(source interface{}, destType reflect.Type) (reflect.Value, error) {
 	mapping, _ := ensureMapping(reflect.TypeOf(source), destType)

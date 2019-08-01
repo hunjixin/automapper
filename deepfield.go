@@ -40,6 +40,13 @@ func newStructField(rField reflect.StructField, mappingTag string, fieldIndex in
 	return structField
 }
 
+func isStartUpperCase(name string) bool {
+	if 'A' <= name[0] && name[0] <= 'Z' {
+		return true
+	}
+	return false
+}
+
 func except(strs []string, s string) {
 	length := len(strs)
 	for i := length - 1; i > -1; i-- {
@@ -81,6 +88,9 @@ func internalDeepFields(ift reflect.Type, index *intVal, key string) []*structFi
 	fields := make([]*structField, 0)
 	for i := 0; i < ift.NumField(); i++ {
 		f := ift.Field(i)
+		if !isStartUpperCase(f.Name) {
+			continue
+		}
 		newKey := key + "[" + f.Name + "]"
 		if f.Type.Kind() == reflect.Chan ||
 			f.Type.Kind() == reflect.Func ||
@@ -103,6 +113,9 @@ func deepValue(ifv reflect.Value) []reflect.Value {
 	for i := 0; i < ifv.Type().NumField(); i++ {
 		v := ifv.Field(i)
 		t := ifv.Type().Field(i)
+		if !isStartUpperCase(t.Name) {
+			continue
+		}
 		if t.Type.Kind() == reflect.Chan ||
 			t.Type.Kind() == reflect.Func ||
 			t.Type.Kind() == reflect.UnsafePointer {

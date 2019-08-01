@@ -29,8 +29,8 @@ type MappingInfo struct {
 	FromFields []*structField
 	ToField    []*structField
 
-	MapFileds  []IStructConverter
-	MapFunc    []func(reflect.Value, interface{})
+	MapFileds []IStructConverter
+	MapFunc   []func(reflect.Value, interface{})
 }
 
 func (mappingInfo *MappingInfo) AddField(field IStructConverter) {
