@@ -1,6 +1,7 @@
 package automapper
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -348,5 +349,48 @@ func TestPtr_ArrayToSliceMappingField(t *testing.T) {
 	newArr := destValue.Interface().([]*SimpleB)
 	if newArr[0].B != arr1[0].B {
 		t.Error("the converted value is not equal to the previous value")
+	}
+}
+
+
+func TestPtrToPtrMapping(t *testing.T) {
+	type PtrToPtrMappingA struct {
+		M string
+	}
+	type PtrToPtrMappingB struct {
+		M string
+	}
+
+	mapping := EnsureMapping(&PtrToPtrMappingA{}, &PtrToPtrMappingB{})
+	realMapping :=  reflect.TypeOf(mapping.MapFileds[0])
+	if realMapping != reflect.TypeOf(&PtrToPtrMapping{}) {
+		t.Errorf("expect PtrToPtrMapping but got %s", realMapping.String())
+	}
+
+	sourceValue := reflect.ValueOf(&PtrToPtrMappingA{"Data"})
+	t1 := reflect.TypeOf(&PtrToPtrMappingB{})
+	destValue := reflect.New(t1).Elem()
+	err := mapping.MapFileds[0].Convert(sourceValue, destValue)
+	if err != nil {
+		t.Error(err)
+	}
+	mapingValue := destValue.Elem().Field(0).Interface().(string)
+	if mapingValue != "Data" {
+		t.Errorf("expect 'Data' but got %s", mapingValue)
+	}
+}
+func TestPtrToPtrMdddapping(t *testing.T) {
+	type A struct {
+
+	}
+	type B struct {
+
+	}
+	t1 := reflect.TypeOf([]A{})
+	t2 := reflect.TypeOf([]B{})
+	fmt.Println(t1)
+	fmt.Println(t2)
+	if t1 == t2 {
+		fmt.Println("xx")
 	}
 }

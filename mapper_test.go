@@ -22,7 +22,7 @@ func TestOneToOneCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	structMappingInfo := mapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping
+	structMappingInfo := mapping.MapFileds[0].(*PtrToPtrMapping).ChildMapping
 	if len(structMappingInfo.MapFileds) != 2 {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
@@ -49,12 +49,12 @@ func TestOneToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	structMappingInfo := mapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping
+	structMappingInfo := mapping.MapFileds[0].(*PtrToPtrMapping).ChildMapping
 	if len(structMappingInfo.MapFileds) != 2 {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
 	for _, mapField := range mapping.MapFileds {
-		struct2strcutMapField := mapField.(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*StructFieldMapping)
+		struct2strcutMapField := mapField.(*PtrToPtrMapping).ChildMapping.MapFileds[0].(*StructFieldMapping)
 		if struct2strcutMapField.FromField.Name() == "A" {
 			if struct2strcutMapField.ToField.Path != "[Embed][A]" {
 				t.Errorf("Map field path error  %s but got %s", ".Embed.A", mapping.Key)
@@ -93,7 +93,7 @@ func TestManyToManyCreateMapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	structMappingInfo := mapping.MapFileds[0].(*PtrMapping).ChildMapping.MapFileds[0].(*PtrMapping).ChildMapping
+	structMappingInfo := mapping.MapFileds[0].(*PtrToPtrMapping).ChildMapping
 	if len(structMappingInfo.MapFileds) != 4 {
 		t.Errorf("Inconsistent number of mapped fields expect %d but got %d", 2, len(mapping.MapFileds))
 	}
@@ -157,6 +157,31 @@ func TestStruct2Map(t *testing.T) {
 	}
 	map2 := structInterface.(map[string]interface{})
 	if map2["B"] != "xxxxx" {
+		t.Errorf("value got but not correct")
+	}
+}
+
+
+func TestPtrToPtr(t *testing.T) {
+	type PtrToPtrInA struct {
+ 		N string
+	}
+	type PtrToPtrInB struct {
+		N string
+	}
+	type PtrToPtrA struct {
+		M *PtrToPtrInA
+	}
+	type PtrToPtrB struct {
+		M *PtrToPtrInB
+	}
+
+	structInterface, err := Mapper(PtrToPtrA{&PtrToPtrInA{"xxxxx"}}, reflect.TypeOf(PtrToPtrB{}))
+	if err != nil {
+		t.Error(err)
+	}
+	map2 := structInterface.(PtrToPtrB)
+	if map2.M.N != "xxxxx" {
 		t.Errorf("value got but not correct")
 	}
 }

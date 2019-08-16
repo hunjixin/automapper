@@ -9,6 +9,19 @@ type IStructConverter interface {
 	Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error
 }
 
+type PtrToPtrMapping struct {
+	ChildMapping *MappingInfo
+}
+
+func (ptrToPtrMapping *PtrToPtrMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
+	childVal, err := ptrToPtrMapping.ChildMapping.mapper(sourceFieldValue.Elem())
+	if err != nil {
+		return err
+	}
+	destFieldValue.Set(childVal.Addr())
+	return nil
+}
+
 type PtrMapping struct {
 	ChildMapping *MappingInfo
 	IsSourcePtr  bool
@@ -27,7 +40,6 @@ func (ptrMapping *PtrMapping) Convert(sourceFieldValue reflect.Value, destFieldV
 	if err != nil {
 		return err
 	}
-	//setValue(sourceFieldValue, childVal)
 	return nil
 }
 
@@ -95,14 +107,6 @@ func setValue(destValue, sourceValue reflect.Value) {
 		return
 	}
 	destValue.Set(sourceValue)
-
-	/*if sourceValue.CanAddr() {
-		destValue.Set(sourceValue)
-	}else{
-		val := reflect.New(sourceValue.Type()).Elem()
-		val.Set(sourceValue)
-		destValue.Set(val.Addr())
-	}*/
 }
 
 // StructToMapMapping struct to map

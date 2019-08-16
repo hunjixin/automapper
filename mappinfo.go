@@ -7,6 +7,7 @@ import (
 const (
 	None = iota
 	Ptr
+	PtrToPtr
 	AnyType
 	SameType
 	MapToMap
@@ -57,16 +58,12 @@ func (mappingInfo *MappingInfo) mapper(source reflect.Value) (reflect.Value, err
 	case AnyType:
 		//mappingInfo.
 		//TODO
+	case PtrToPtr:
+		fallthrough
 	case Ptr:
-		err := mappingInfo.MapFileds[0].Convert(source, destValue)
-		if err != nil {
-			return reflect.ValueOf(nil), err
-		}
+		fallthrough
 	case SameType:
-		err := mappingInfo.MapFileds[0].Convert(source, destValue)
-		if err != nil {
-			return reflect.ValueOf(nil), err
-		}
+		fallthrough
 	case ArrayToArray:
 		fallthrough
 	case ArrayToSlice:

@@ -10,6 +10,8 @@ var (
 	mapperStore = map[reflect.Type]map[reflect.Type]*MappingInfo{}
 	lock        sync.Mutex
 	cache       = lrucache.New(1025)
+
+	ByteType    = reflect.TypeOf(byte(0))
 )
 
 // MustCreateMapper similar to CreateMapper but ignore err
@@ -52,6 +54,15 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	} else {
 		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
 	}
+	//PTR=>PTR
+	if sourceType.Kind() == reflect.Ptr && destType.Kind() == reflect.Ptr {
+		newMappingInfo.Type = PtrToPtr
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
+		newMappingInfo.AddField(&PtrToPtrMapping{
+			childMapping,
+		})
+		goto End
+	}
 	//PTR
 	if sourceType.Kind() == reflect.Ptr {
 		newMappingInfo.Type = Ptr
@@ -68,15 +79,6 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		newMappingInfo.AddField(&PtrMapping{
 			childMapping,
 			false,
-		})
-		goto End
-	}
-	//map => map
-	if destType.Kind() == reflect.Map && sourceType.Kind() == reflect.Map {
-		newMappingInfo.Type = MapToMap
-		newMappingInfo.AddField(&MapToMapMapping{
-			sourceType,
-			destType,
 		})
 		goto End
 	}
@@ -99,18 +101,6 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		goto End
 	}
 
-	//Array => Array
-	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Array {
-		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
-		newMappingInfo.Type = ArrayToArray
-		newMappingInfo.AddField(&Array2ArrayMapping{
-			sourceType.Elem(),
-			destType.Elem(),
-			sourceType.Len(),
-			childMapping,
-		})
-		goto End
-	}
 	//Slice => Array
 	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Array {
 		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
@@ -152,6 +142,29 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	if sourceType == destType {
 		newMappingInfo.Type = SameType
 		newMappingInfo.AddField(&SameTypeMapping{
+			sourceType,
+			destType,
+		})
+		goto End
+	}
+	// type below SameType can set directly
+	//Array => Array
+	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Array {
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
+		newMappingInfo.Type = ArrayToArray
+		newMappingInfo.AddField(&Array2ArrayMapping{
+			sourceType.Elem(),
+			destType.Elem(),
+			sourceType.Len(),
+			childMapping,
+		})
+		goto End
+	}
+
+	//map => map
+	if destType.Kind() == reflect.Map && sourceType.Kind() == reflect.Map {
+		newMappingInfo.Type = MapToMap
+		newMappingInfo.AddField(&MapToMapMapping{
 			sourceType,
 			destType,
 		})
