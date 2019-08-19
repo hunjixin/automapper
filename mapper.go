@@ -54,6 +54,16 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 	} else {
 		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
 	}
+
+	if sourceType == destType {
+		newMappingInfo.Type = SameType
+		newMappingInfo.AddField(&SameTypeMapping{
+			sourceType,
+			destType,
+		})
+		goto End
+	}
+
 	//PTR=>PTR
 	if sourceType.Kind() == reflect.Ptr && destType.Kind() == reflect.Ptr {
 		newMappingInfo.Type = PtrToPtr
@@ -126,27 +136,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 		})
 		goto End
 	}
-	//Slice => Slice
-	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Slice {
-		newMappingInfo.Type = ArrayToSlice
-		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
-		newMappingInfo.Type = SliceToSlice
-		newMappingInfo.AddField(&Slice2SliceMapping{
-			sourceType.Elem(),
-			destType.Elem(),
-			childMapping,
-		})
-		goto End
-	}
 
-	if sourceType == destType {
-		newMappingInfo.Type = SameType
-		newMappingInfo.AddField(&SameTypeMapping{
-			sourceType,
-			destType,
-		})
-		goto End
-	}
 	// type below SameType can set directly
 	//Array => Array
 	if sourceType.Kind() == reflect.Array && destType.Kind() == reflect.Array {
@@ -156,6 +146,19 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 			sourceType.Elem(),
 			destType.Elem(),
 			sourceType.Len(),
+			childMapping,
+		})
+		goto End
+	}
+
+	//Slice => Slice
+	if sourceType.Kind() == reflect.Slice && destType.Kind() == reflect.Slice {
+		newMappingInfo.Type = ArrayToSlice
+		childMapping, _ := ensureMapping(sourceType.Elem(), destType.Elem())
+		newMappingInfo.Type = SliceToSlice
+		newMappingInfo.AddField(&Slice2SliceMapping{
+			sourceType.Elem(),
+			destType.Elem(),
 			childMapping,
 		})
 		goto End
