@@ -21,8 +21,8 @@ const (
 	StructField
 )
 
-// MappingInfo recored field mapping information
-type MappingInfo struct {
+// mappingInfo recored field mapping information
+type mappingInfo struct {
 	Key        string
 	Type       int
 	SourceType reflect.Type
@@ -31,23 +31,23 @@ type MappingInfo struct {
 	ToField    []*structField
 
 	MapFileds []IStructConverter
-	MapFunc   []func(reflect.Value, interface{})
+	MapFunc   []mapFunc
 }
 
-func (mappingInfo *MappingInfo) AddField(field IStructConverter) {
+func (mappingInfo *mappingInfo) AddField(field IStructConverter) {
 	mappingInfo.MapFileds = append(mappingInfo.MapFileds, field)
 }
 
 // Mapping add customize field mapping
 // arg1 is a ptr to dest value
 // arg2 is the origin value (may be ptr or not)
-func (mappingInfo *MappingInfo) Mapping(mapFunc func(reflect.Value, interface{})) *MappingInfo {
+func (mappingInfo *mappingInfo) Mapping(mapFunc mapFunc) *mappingInfo {
 	mappingInfo.MapFunc = append(mappingInfo.MapFunc, mapFunc)
 	return mappingInfo
 }
 
 // Mapper get a instance by given source value and dest type
-func (mappingInfo *MappingInfo) mapper(source reflect.Value) (reflect.Value, error) {
+func (mappingInfo *mappingInfo) mapper(source reflect.Value) (reflect.Value, error) {
 	destValue := reflect.ValueOf(nil)
 	if isNil(source) {
 		return destValue, nil
@@ -96,7 +96,10 @@ func (mappingInfo *MappingInfo) mapper(source reflect.Value) (reflect.Value, err
 	}
 
 	for _, mapFunc := range mappingInfo.MapFunc {
-		mapFunc(destValue.Addr(), source.Interface())
+		err := mapFunc(destValue.Addr(), source.Interface())
+		if err != nil {
+			return reflect.ValueOf(nil), err
+		}
 	}
 	return destValue, nil
 }

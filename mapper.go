@@ -7,15 +7,15 @@ import (
 )
 
 var (
-	mapperStore = map[reflect.Type]map[reflect.Type]*MappingInfo{}
+	mapperStore = map[reflect.Type]map[reflect.Type]*mappingInfo{}
 	lock        sync.Mutex
 	cache       = lrucache.New(1025)
-
-	ByteType    = reflect.TypeOf(byte(0))
 )
 
+type mapFunc func(reflect.Value, interface{})error
+
 // MustCreateMapper similar to CreateMapper but ignore err
-func MustCreateMapper(sourceType, destType interface{}) *MappingInfo {
+func MustCreateMapper(sourceType, destType interface{}) *mappingInfo {
 	mappingInfo, _ := CreateMapper(sourceType, destType)
 	return mappingInfo
 }
@@ -26,7 +26,7 @@ func MustCreateMapper(sourceType, destType interface{}) *MappingInfo {
 // if name is 1 to 1 :use name to match
 // if name is 1 to many or many to 1: use key path to match
 // if name is many to many :  use key path to match. may exist match more than one
-func CreateMapper(sourceType, destType interface{}) (*MappingInfo, error) {
+func CreateMapper(sourceType, destType interface{}) (*mappingInfo, error) {
 	lock.Lock()
 	defer func() {
 		lock.Unlock()
@@ -34,13 +34,13 @@ func CreateMapper(sourceType, destType interface{}) (*MappingInfo, error) {
 	return createMapper(reflect.TypeOf(sourceType), reflect.TypeOf(destType))
 }
 
-func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
-	newMappingInfo := &MappingInfo{
+func createMapper(sourceType, destType reflect.Type) (*mappingInfo, error) {
+	newMappingInfo := &mappingInfo{
 		Key:        sourceType.String() + "=>" + destType.String(),
 		SourceType: sourceType,
 		DestType:   destType,
 		MapFileds:  []IStructConverter{},
-		MapFunc:    []func(reflect.Value, interface{}){},
+		MapFunc:    []mapFunc{},
 	}
 
 	mappingInfosMap, ok := mapperStore[sourceType]
@@ -52,7 +52,7 @@ func createMapper(sourceType, destType reflect.Type) (*MappingInfo, error) {
 			mappingInfosMap[destType] = newMappingInfo
 		}
 	} else {
-		mapperStore[sourceType] = map[reflect.Type]*MappingInfo{destType: newMappingInfo}
+		mapperStore[sourceType] = map[reflect.Type]*mappingInfo{destType: newMappingInfo}
 	}
 
 	if sourceType == destType {
@@ -307,7 +307,7 @@ func isNil(val reflect.Value) bool {
 }
 
 // EnsureMapping get mapping relationship by source and dest type if not exist auto create
-func EnsureMapping(sourceType, destType interface{}) *MappingInfo {
+func EnsureMapping(sourceType, destType interface{}) *mappingInfo {
 	lock.Lock()
 	defer func() {
 		lock.Unlock()
@@ -317,7 +317,7 @@ func EnsureMapping(sourceType, destType interface{}) *MappingInfo {
 }
 
 // ensureMapping get mapping by source and dest type if not exist auto create
-func ensureMapping(sourceType, destType reflect.Type) (*MappingInfo, bool) {
+func ensureMapping(sourceType, destType reflect.Type) (*mappingInfo, bool) {
 	mappingInfosMaps, ok := mapperStore[sourceType]
 	if !ok {
 		mapping, _ := createMapper(sourceType, destType)

@@ -10,7 +10,7 @@ type IStructConverter interface {
 }
 
 type PtrToPtrMapping struct {
-	ChildMapping *MappingInfo
+	ChildMapping *mappingInfo
 }
 
 func (ptrToPtrMapping *PtrToPtrMapping) Convert(sourceFieldValue reflect.Value, destFieldValue reflect.Value) error {
@@ -23,7 +23,7 @@ func (ptrToPtrMapping *PtrToPtrMapping) Convert(sourceFieldValue reflect.Value, 
 }
 
 type PtrMapping struct {
-	ChildMapping *MappingInfo
+	ChildMapping *mappingInfo
 	IsSourcePtr  bool
 }
 
@@ -136,7 +136,7 @@ type Array2ArrayMapping struct {
 	FromFieldType reflect.Type
 	ToFieldType   reflect.Type
 	Length        int
-	ChildMapping  *MappingInfo
+	ChildMapping  *mappingInfo
 }
 
 //Convert clone array element one by one, is ele type is different recursively element value to the new array element value
@@ -156,7 +156,7 @@ type Slice2ArrayMapping struct {
 	FromFieldType reflect.Type
 	ToFieldType   reflect.Type
 	ArrayLen      int
-	ChildMapping  *MappingInfo
+	ChildMapping  *mappingInfo
 }
 
 //Convert only clone minlength of 2, element copy like Array2ArrayMapping
@@ -179,7 +179,7 @@ func (slice2ArrayMapping *Slice2ArrayMapping) Convert(sourceFieldValue reflect.V
 type Slice2SliceMapping struct {
 	FromFieldType reflect.Type
 	ToFieldType   reflect.Type
-	ChildMapping  *MappingInfo
+	ChildMapping  *mappingInfo
 }
 
 //Convert only clone minlength of 2, element copy like Array2ArrayMapping
@@ -201,7 +201,7 @@ type Array2SliceMapping struct {
 	FromFieldType reflect.Type
 	ToFieldType   reflect.Type
 	ArrayLen      int
-	ChildMapping  *MappingInfo
+	ChildMapping  *mappingInfo
 }
 
 //Convert only clone minlength of 2, element copy like Array2ArrayMapping
@@ -247,7 +247,7 @@ func (anyMapping *AnyMapping) Convert(sourceFieldValue reflect.Value, destFieldV
 type StructFieldMapping struct {
 	FromField    *structField
 	ToField      *structField
-	ChildMapping *MappingInfo
+	ChildMapping *mappingInfo
 }
 
 // Convert invoke field mappig and use reslut as field value
